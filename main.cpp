@@ -60,6 +60,7 @@ dReal kds= 1000.0;   // suspension damping
 
 dReal steerGain= 100;
 int manualYes= 0;
+int brakeYes=0;
 
 // obstacle balls
 const int nObs= 250;
@@ -136,14 +137,16 @@ dReal bounded(dReal var, dReal lb, dReal ub)
 void simControl()
 {
 
-    /*if (manualYes)
+    // auto align steering angle
+    if (manualYes)
         steerGain= 100;
     else
     {
         steerGain= 100;
-        steer*= 0.8;
-        //speed*= 0.8;
-    }*/
+        steer*= 0.992;
+        speed*= 0.999;
+    }
+
     dReal dsteer, realSpeed;
     dsteer = bounded(steer,-40.0,40.0) - dJointGetHinge2Angle1(FRJoint);
     realSpeed = -bounded(speed, -14*M_PI, 30*M_PI);
@@ -160,10 +163,29 @@ void simControl()
     dJointSetHinge2Param (FLJoint,dParamHiStop,40.0*M_PI/180.0);
     dJointSetHinge2Param (FLJoint,dParamFudgeFactor,0.1);
     // speed
-    dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);
-    dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
-    dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);
-    dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
+    if (brakeYes)
+    {
+        dReal factor= 0.1;
+        dJointSetHinge2Param(RRJoint, dParamVel2, dJointGetHinge2Param(RRJoint,dParamVel2)*factor);
+        dJointSetHinge2Param(RRJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(RLJoint, dParamVel2, dJointGetHinge2Param(RLJoint,dParamVel2)*factor);
+        dJointSetHinge2Param(RLJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);//dJointGetHinge2Param(FRJoint,dParamVel2)*factor);
+        dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);//dJointGetHinge2Param(FLJoint,dParamVel2)*factor);
+        dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
+    }
+    else
+    {
+        // turn off rear wheels
+        dJointSetHinge2Param(RRJoint, dParamFMax2, 0.0);
+        dJointSetHinge2Param(RLJoint, dParamFMax2, 0.0);
+        // set up front wheels
+        dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);
+        dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);
+        dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
+    }
 
     // reset manual mode flag
     manualYes= 0;
@@ -202,20 +224,27 @@ static void simloop(int pause)
 void manualCmd(int cmd)
 {
     manualYes= 1;
+    brakeYes= 0;
     switch (cmd)
     {
         case 'i': case 'I':
             speed+= 0.25*M_PI;
             break;
+        case ',': case '<':
+            speed*= 0.1*M_PI;
+            brakeYes = 1;
+            break;
         case 'k': case 'K':
             speed-= 0.25*M_PI;
             break;
         case 'j': case 'J':
-            steer-= 2*M_PI/180;
+            steer-= 5*M_PI/180;
             break;
         case 'l': case 'L':
-            steer+= 2*M_PI/180;
+            steer+= 5*M_PI/180;
             break;
+        default:
+            manualYes = 0;
     }
 
 }
@@ -236,7 +265,8 @@ void setDSFunctions()
     fn.start= &start;
     fn.stop= NULL;
     fn.command= &manualCmd;
-    fn.path_to_textures= "/home/jlo/ode-0.13/drawstuff/textures";
+    fn.path_to_textures= "c:/dev/ode-0.13/drawstuff/textures";  // win version
+    //fn.path_to_textures= "/home/jlo/ode-0.13/drawstuff/textures";  // linux version
 }
 
 // create bodies
