@@ -40,6 +40,8 @@
 		<Unit filename="../../../../../../dev/ode-0.13/drawstuff/src/resources.rc">
 			<Option compilerVar="WINDRES" />
 		</Unit>
+		<Unit filename="../../../../../../include/VMCar.h" />
+		<Unit filename="../../../../../../src/VMCar.cpp" />
 		<Unit filename="main.cpp" />
 		<Extensions>
 			<code_completion />
