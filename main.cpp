@@ -1,7 +1,5 @@
-// Sample1.cpp by Kosei Demura 2005-2011
-// My web site is http://demura.net
-// This program uses the Open Dynamics Engine (ODE) by Russell Smith.
-// The ODE web site is http://ode.org/
+// Simple ODE car simulator
+
 
 #include <ode/ode.h>
 #include <drawstuff/drawstuff.h>
@@ -143,7 +141,7 @@ void simControl()
     else
     {
         steerGain= 100;
-        steer*= 0.992;
+        steer*= 0.98;
         speed*= 0.999;
     }
 
