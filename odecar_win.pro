@@ -4,13 +4,15 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 DEFINES += dDOUBLE
-SOURCES += main.cpp
+SOURCES += main.cpp \
+    include/vmCar.cpp
 
 INCLUDEPATH += "C:/dev/ode-0.13/include"
 INCLUDEPATH += "C:/dev/ode-0.13/drawstuff/src"
 INCLUDEPATH += "C:/dev/ode-0.13/ode/src"
 
-HEADERS +=
+HEADERS += \
+    include/vmCar.h
 
 RC_FILE += "C:\dev\ode-0.13\drawstuff\src\resources.rc"
 

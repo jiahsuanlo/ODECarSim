@@ -3,6 +3,8 @@
 
 #include <ode/ode.h>
 #include <drawstuff/drawstuff.h>
+#include <include/vmCar.h>
+
 
 #ifdef dDOUBLE
 #define dsDrawCylinder dsDrawCylinderD
@@ -11,50 +13,32 @@
 
 static dWorldID world;
 static dSpaceID space;
-static dGeomID ground;
+static dSpaceID groundSpace;
 static dJointGroupID contactGroup;
 
 // define body type
-typedef struct{
-    dBodyID body;
-    dGeomID geom;
-    dReal mass;
-    dReal sides[3];  //length,width,height
-} chassis;
-
-typedef struct {
-    dBodyID body;
-    dGeomID geom;
-    dReal mass;
-    dReal length,radius;
-} wheel;
-
-typedef struct{
-    dGeomID geom;
-    dReal radius;
-} sphere;
-
-
-chassis carBody;
-wheel FRWheel, FLWheel, RRWheel, RLWheel;
-dJointID FRJoint, FLJoint, RRJoint, RLJoint;
-dJointID FRMotor1, FRMotor2, FLMotor1, FLMotor2;
-
+vmCar car(world,space);
 dsFunctions fn;
 
 // define some constants
 dReal STEPSIZE= 0.01;
-dReal LN= 2.0;
-dReal WD= 1.5;
-dReal HT= 0.75;
-dReal RD= 0.3;  // wheel radius
-dReal WW= 0.2;  // wheel width
 
-dReal speed= 0.0;
-dReal steer= 0.0;
+// chassis parameters
+dReal chassisMass= 3000;
+dReal chassisLength= 2.0;
+dReal chassisWidth= 1.5;
+dReal chassisHeight= 0.75;
 
+// wheel paremeters
+dReal wheelMass= 10;
+dReal wheelRadius= 0.3;  // wheel radius
+dReal wheelWidth= 0.2;  // wheel width
 dReal kps= 10000.0;  // suspension stiffness
 dReal kds= 1000.0;   // suspension damping
+
+// control parameters
+dReal speed= 0.0;
+dReal steer= 0.0;
 
 dReal steerGain= 100;
 int manualYes= 0;
@@ -63,18 +47,6 @@ int brakeYes=0;
 // obstacle balls
 const int nObs= 250;
 sphere ball[nObs];
-
-
-
-// compute ERP and CFM
-dReal computeERP(dReal kp, dReal kd)
-{
-    return STEPSIZE*kp/(STEPSIZE*kp + kd);
-}
-dReal computeCFM(dReal kp, dReal kd)
-{
-    return 1.0/(STEPSIZE*kp + kd);
-}
 
 
 // collision callback
@@ -120,17 +92,7 @@ static void nearCallback(void *data, dGeomID g1, dGeomID g2)
     }
 }
 
-dReal bounded(dReal var, dReal lb, dReal ub)
-{
-    dReal out;
-    if (var<lb)
-        out= lb;
-    else if (var>ub)
-        out= ub;
-    else
-        out= var;
-    return out;
-}
+
 
 void simControl()
 {
@@ -216,8 +178,6 @@ static void simloop(int pause)
 }
 
 
-
-
 // manual command
 void manualCmd(int cmd)
 {
@@ -268,134 +228,15 @@ void setDSFunctions()
 }
 
 // create bodies
-void createChassis()
+void createCar()
 {
-    carBody.sides[0]= LN; // length
-    carBody.sides[1]= WD; // width
-    carBody.sides[2]= HT; // height
-    carBody.mass= 1000;  // kg
-
-    carBody.body= dBodyCreate(world);
-    carBody.geom= dCreateBox(space,carBody.sides[0],carBody.sides[1],carBody.sides[2]);
-
-    // mass properties
-    dMass m1;
-    dMassSetZero(&m1);
-    dMassSetBoxTotal(&m1,carBody.mass,
-                     carBody.sides[0],carBody.sides[1],carBody.sides[2]);
-    dBodySetMass(carBody.body,&m1);
-    dBodySetPosition(carBody.body,0.0,0.0,RD+0.5*HT);
-    dGeomSetBody(carBody.geom,carBody.body);
-}
-// create wheels
-void createWheels()
-{
-    FRWheel.radius= RD; FRWheel.length=WW; FRWheel.mass= 8;
-    FLWheel.radius= RD; FLWheel.length=WW; FLWheel.mass= 8;
-    RRWheel.radius= RD; RRWheel.length=WW; RRWheel.mass= 8;
-    RLWheel.radius= RD; RLWheel.length=WW; RLWheel.mass= 8;
-
-    // create body and geom
-    FRWheel.body= dBodyCreate(world);
-    FRWheel.geom= dCreateCylinder(space,FRWheel.radius,FRWheel.length);
-    FLWheel.body= dBodyCreate(world);
-    FLWheel.geom= dCreateCylinder(space,FLWheel.radius,FLWheel.length);
-    RRWheel.body= dBodyCreate(world);
-    RRWheel.geom= dCreateCylinder(space,RRWheel.radius,RRWheel.length);
-    RLWheel.body= dBodyCreate(world);
-    RLWheel.geom= dCreateCylinder(space,RLWheel.radius,RLWheel.length);
-
-    // set mass
-    dMass m1;
-    dMassSetZero(&m1);
-    dMassSetCylinderTotal(&m1,FRWheel.mass,2,FRWheel.radius,FRWheel.length);
-    dBodySetMass(FRWheel.body,&m1);
-
-    dMassSetZero(&m1);
-    dMassSetCylinderTotal(&m1,FLWheel.mass,2,FLWheel.radius,FLWheel.length);
-    dBodySetMass(FLWheel.body,&m1);
-
-    dMassSetZero(&m1);
-    dMassSetCylinderTotal(&m1,RRWheel.mass,2,RRWheel.radius,RRWheel.length);
-    dBodySetMass(RRWheel.body,&m1);
-
-    dMassSetZero(&m1);
-    dMassSetCylinderTotal(&m1,RLWheel.mass,2,RLWheel.radius,RLWheel.length);
-    dBodySetMass(RLWheel.body,&m1);
-
-    // set locations
-    dBodySetPosition(FRWheel.body,0.5*LN, 0.5*WD, RD);
-    dBodySetPosition(FLWheel.body,0.5*LN, -0.5*WD, RD);
-    dBodySetPosition(RRWheel.body,-0.5*LN, 0.5*WD, RD);
-    dBodySetPosition(RLWheel.body,-0.5*LN, -0.5*WD, RD);
-
-    //set rotations
-    dMatrix3 rmat;
-    dRFromAxisAndAngle(rmat,1.0,0.0,0.0, 0.5*M_PI);
-    dBodySetRotation(FRWheel.body, rmat);
-    dBodySetRotation(FLWheel.body, rmat);
-    dBodySetRotation(RRWheel.body, rmat);
-    dBodySetRotation(RLWheel.body, rmat);
-
-    // set geom
-    dGeomSetBody(FRWheel.geom,FRWheel.body);
-    dGeomSetBody(FLWheel.geom,FLWheel.body);
-    dGeomSetBody(RRWheel.geom,RRWheel.body);
-    dGeomSetBody(RLWheel.geom,RLWheel.body);
+    car.setChassis(chassisMass,chassisLength,
+                   chassisWidth,chassisHeight);
+    car.setAllWheel(wheelMass,wheelWidth,wheelRadius);
+    car.setCarOnGround(0.0,0.0);
+    car.setAllWheelJoint(kps,kds);
 }
 
-// create wheel-body joints
-void createJoints()
-{
-    // create joint
-    FRJoint= dJointCreateHinge2(world,0);
-    FLJoint= dJointCreateHinge2(world,0);
-    RRJoint= dJointCreateHinge2(world,0);
-    RLJoint= dJointCreateHinge2(world,0);
-
-    // attach joint
-    dJointAttach(FRJoint,carBody.body,FRWheel.body);
-    dJointAttach(FLJoint,carBody.body,FLWheel.body);
-    dJointAttach(RRJoint,carBody.body,RRWheel.body);
-    dJointAttach(RLJoint,carBody.body,RLWheel.body);
-
-    // set joint
-    const dReal *pos;
-    pos= dBodyGetPosition(FRWheel.body);
-    dJointSetHinge2Anchor(FRJoint,pos[0],pos[1],pos[2]);
-    dJointSetHinge2Axis1(FRJoint,0.0, 0.0, 1.0); // steering
-    dJointSetHinge2Axis2(FRJoint,0.0, 1.0, 0.0); // rotation
-    dJointSetHinge2Param(FRJoint,dParamSuspensionERP, computeERP(kps,kds)); // suspension
-    dJointSetHinge2Param(FRJoint,dParamSuspensionCFM, computeCFM(kps,kds)); // suspension
-
-    pos= dBodyGetPosition(FLWheel.body);
-    dJointSetHinge2Anchor(FLJoint,pos[0],pos[1],pos[2]);
-    dJointSetHinge2Axis1(FLJoint,0.0, 0.0, 1.0); // steering
-    dJointSetHinge2Axis2(FLJoint,0.0, 1.0, 0.0); // rotation
-    dJointSetHinge2Param(FLJoint,dParamSuspensionERP, computeERP(kps,kds)); // suspension
-    dJointSetHinge2Param(FLJoint,dParamSuspensionCFM, computeCFM(kps,kds)); // suspension
-
-    pos= dBodyGetPosition(RRWheel.body);
-    dJointSetHinge2Anchor(RRJoint,pos[0],pos[1],pos[2]);
-    dJointSetHinge2Axis1(RRJoint,0.0, 0.0, 1.0); // steering
-    dJointSetHinge2Axis2(RRJoint,0.0, 1.0, 0.0); // rotation
-    dJointSetHinge2Param(RRJoint,dParamSuspensionERP, computeERP(kps,kds)); // suspension
-    dJointSetHinge2Param(RRJoint,dParamSuspensionCFM, computeCFM(kps,kds)); // suspension
-
-    pos= dBodyGetPosition(RLWheel.body);
-    dJointSetHinge2Anchor(RLJoint,pos[0],pos[1],pos[2]);
-    dJointSetHinge2Axis1(RLJoint,0.0, 0.0, 1.0); // steering
-    dJointSetHinge2Axis2(RLJoint,0.0, 1.0, 0.0); // rotation
-    dJointSetHinge2Param(RLJoint,dParamSuspensionERP, computeERP(kps,kds)); // suspension
-    dJointSetHinge2Param(RLJoint,dParamSuspensionCFM, computeCFM(kps,kds)); // suspension
-
-    // lock rear wheel to keep it align to 0 degree (longitudinally)
-    dJointSetHinge2Param(RRJoint, dParamLoStop, 0.0);
-    dJointSetHinge2Param(RRJoint, dParamHiStop, 0.0);
-    dJointSetHinge2Param(RLJoint, dParamLoStop, 0.0);
-    dJointSetHinge2Param(RLJoint, dParamHiStop, 0.0);
-
-}
 
 // create obstacles
 void createObstacles()
@@ -407,7 +248,7 @@ void createObstacles()
         xo= dRandReal()*50;
         yo= dRandReal()*50;
         ball[i].radius= 1.0;
-        ball[i].geom= dCreateSphere(space, ball[i].radius);
+        ball[i].geom= dCreateSphere(groundSpace, ball[i].radius);
         dGeomSetPosition(ball[i].geom,xo,-yo,-0.9);
     }
 }
@@ -426,17 +267,12 @@ int main (int argc, char **argv)
     dWorldSetGravity(world,0.0,0.0, -9.81);
 
     // create ground
-    ground= dCreatePlane(space,0.0, 0.0, 1.0, 0.0);  // z= 0 plane
-
-    // create bodies
-    createChassis();
-    createWheels();
-
-    // create wheel-body joints
-    createJoints();
-
+    ground= dCreatePlane(groundSpace,0.0, 0.0, 1.0, 0.0);  // z= 0 plane
     // create obstacles
     createObstacles();
+
+    // create car
+    createCar();
 
     // start simulation
     dsSimulationLoop(argc,argv,1000,800,&fn);
