@@ -18,6 +18,7 @@
 					<Add option="-DdDOUBLE" />
 					<Add directory="C:/dev/ode-0.13/include" />
 					<Add directory="C:/dev/ode-0.13/ode/src" />
+					<Add directory="include" />
 				</Compiler>
 				<ResourceCompiler>
 					<Add directory="C:/dev/ode-0.13/include" />
@@ -36,7 +37,7 @@
 				</Linker>
 			</Target>
 		</Build>
-		<Unit filename="C:/dev/ode-0.13/drawstuff/src/resources.rc">
+		<Unit filename="../../../../../../dev/ode-0.13/drawstuff/src/resources.rc">
 			<Option compilerVar="WINDRES" />
 		</Unit>
 		<Unit filename="main.cpp" />
