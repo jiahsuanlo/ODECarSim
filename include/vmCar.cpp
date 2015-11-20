@@ -22,7 +22,7 @@ void vmCar::setChassis(dReal mass, dReal length, dReal width, dReal height)
     chassis.sides[2]= height;
     chassis.mass= mass;
 
-    // create body and geom
+    // create body and getom
     chassis.body= dBodyCreate(world);
     chassis.geom= dCreateBox(space,chassis.sides[0],chassis.sides[1],chassis.sides[2]);
 
@@ -33,16 +33,23 @@ void vmCar::setChassis(dReal mass, dReal length, dReal width, dReal height)
                      chassis.sides[0],chassis.sides[1],chassis.sides[2]);
     dBodySetMass(chassis.body,&m1);
     dGeomSetBody(chassis.geom,chassis.body);
+
+    // set default controls
+    this->steer= 0.0;
+    this->speed= 0.0;
+    this->steerGain= 100;
+
+    chassis.initialized=true;
 }
 
 void vmCar::setCMPosition(dReal x, dReal y, dReal z)
 {
     // if any of chassis and wheels are not setup, return
-    if ((chassis.body==0) || (frWheel.body==0) ||
-            (flWheel.body==0) || (rrWheel.body==0) ||
-            (rlWheel.body==0))
+    if ((!chassis.initialized) || (!frWheel.initialized) ||
+            (!flWheel.initialized) || (!rrWheel.initialized) ||
+            (!rlWheel.initialized))
     {
-        printf('Some chassis/wheel entity is not defined yet!');
+        printf("setCM: Some chassis/wheel entity is not defined yet!");
         return;
     }
 
@@ -79,21 +86,21 @@ void vmCar::setCarOnGround(dReal x, dReal y)
     setCMPosition(x,y,znow);
 }
 
-void vmCar::setAllWheelJoint(dReal kps, dReal kds)
+void vmCar::setAllWheelJoint()
 {
     // if any of chassis and wheels are not setup, return
-    if ((chassis.body==0) || (frWheel.body==0) ||
-            (flWheel.body==0) || (rrWheel.body==0) ||
-            (rlWheel.body==0))
+    if ((!chassis.initialized) || (!frWheel.initialized) ||
+            (!flWheel.initialized) || (!rrWheel.initialized) ||
+            (!rlWheel.initialized))
     {
-        printf('Some chassis/wheel entity is not defined yet!');
+        printf("set Joint: Some chassis/wheel entity is not defined yet!");
         return;
     }
 
-    setWheelJoint(vmCar::WheelLoc::FR,kps,kds);
-    setWheelJoint(vmCar::WheelLoc::FL,kps,kds);
-    setWheelJoint(vmCar::WheelLoc::RR,kps,kds);
-    setWheelJoint(vmCar::WheelLoc::RL,kps,kds);
+    setWheelJoint(vm::WheelLoc::FR);
+    setWheelJoint(vm::WheelLoc::FL);
+    setWheelJoint(vm::WheelLoc::RR);
+    setWheelJoint(vm::WheelLoc::RL);
 
 }
 
@@ -106,52 +113,53 @@ void vmCar::simControl()
 {
     // auto align steering angle
     if (manualYes)
-        steerGain= 100;
+        steerGain= 10;
     else
     {
-        steerGain= 100;
+        steerGain= 10;
         steer*= 0.98;
         speed*= 0.999;
     }
 
+
     dReal dsteer, realSpeed;
-    dsteer = bounded(steer,-40.0,40.0) - dJointGetHinge2Angle1(FRJoint);
+    dsteer = bounded(steer,-40.0,40.0) - dJointGetHinge2Angle1(frWheel.joint);
     realSpeed = -bounded(speed, -14*M_PI, 30*M_PI);
     // steer
-    dJointSetHinge2Param(FRJoint, dParamVel, steerGain*dsteer);
-    dJointSetHinge2Param(FRJoint, dParamFMax, 1000.0);
-    dJointSetHinge2Param (FRJoint,dParamLoStop,-40.0*M_PI/180.0);
-    dJointSetHinge2Param (FRJoint,dParamHiStop,40.0*M_PI/180.0);
-    dJointSetHinge2Param (FRJoint,dParamFudgeFactor,0.1);
+    dJointSetHinge2Param(frWheel.joint, dParamVel, steerGain*dsteer+0.01*dsteer/0.01);
+    dJointSetHinge2Param(frWheel.joint, dParamFMax, 1000.0);
+    dJointSetHinge2Param (frWheel.joint,dParamLoStop,-40.0*M_PI/180.0);
+    dJointSetHinge2Param (frWheel.joint,dParamHiStop,40.0*M_PI/180.0);
+    dJointSetHinge2Param (frWheel.joint,dParamFudgeFactor,0.1);
 
-    dJointSetHinge2Param(FLJoint, dParamVel, steerGain*dsteer);
-    dJointSetHinge2Param(FLJoint, dParamFMax, 1000.0);
-    dJointSetHinge2Param (FLJoint,dParamLoStop,-40.0*M_PI/180.0);
-    dJointSetHinge2Param (FLJoint,dParamHiStop,40.0*M_PI/180.0);
-    dJointSetHinge2Param (FLJoint,dParamFudgeFactor,0.1);
+    dJointSetHinge2Param(flWheel.joint, dParamVel, steerGain*dsteer+0.01*dsteer/0.01);
+    dJointSetHinge2Param(flWheel.joint, dParamFMax, 1000.0);
+    dJointSetHinge2Param (flWheel.joint,dParamLoStop,-40.0*M_PI/180.0);
+    dJointSetHinge2Param (flWheel.joint,dParamHiStop,40.0*M_PI/180.0);
+    dJointSetHinge2Param (flWheel.joint,dParamFudgeFactor,0.1);
     // speed
     if (brakeYes)
     {
         dReal factor= 0.1;
-        dJointSetHinge2Param(RRJoint, dParamVel2, dJointGetHinge2Param(RRJoint,dParamVel2)*factor);
-        dJointSetHinge2Param(RRJoint, dParamFMax2, 10000.0);
-        dJointSetHinge2Param(RLJoint, dParamVel2, dJointGetHinge2Param(RLJoint,dParamVel2)*factor);
-        dJointSetHinge2Param(RLJoint, dParamFMax2, 10000.0);
-        dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);//dJointGetHinge2Param(FRJoint,dParamVel2)*factor);
-        dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
-        dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);//dJointGetHinge2Param(FLJoint,dParamVel2)*factor);
-        dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(rrWheel.joint, dParamVel2, dJointGetHinge2Param(rrWheel.joint,dParamVel2)*factor);
+        dJointSetHinge2Param(rrWheel.joint, dParamFMax2, 1000.0);
+        dJointSetHinge2Param(rlWheel.joint, dParamVel2, dJointGetHinge2Param(rlWheel.joint,dParamVel2)*factor);
+        dJointSetHinge2Param(rlWheel.joint, dParamFMax2, 1000.0);
+        dJointSetHinge2Param(frWheel.joint, dParamVel2, realSpeed);//dJointGetHinge2Param(frWheel.joint,dParamVel2)*factor);
+        dJointSetHinge2Param(frWheel.joint, dParamFMax2, 1000.0);
+        dJointSetHinge2Param(flWheel.joint, dParamVel2, realSpeed);//dJointGetHinge2Param(flWheel.joint,dParamVel2)*factor);
+        dJointSetHinge2Param(flWheel.joint, dParamFMax2, 1000.0);
     }
     else
     {
         // turn off rear wheels
-        dJointSetHinge2Param(RRJoint, dParamFMax2, 0.0);
-        dJointSetHinge2Param(RLJoint, dParamFMax2, 0.0);
+        dJointSetHinge2Param(rrWheel.joint, dParamFMax2, 0.0);
+        dJointSetHinge2Param(rlWheel.joint, dParamFMax2, 0.0);
         // set up front wheels
-        dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);
-        dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
-        dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);
-        dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(frWheel.joint, dParamVel2, realSpeed);
+        dJointSetHinge2Param(frWheel.joint, dParamFMax2, 500.0);
+        dJointSetHinge2Param(flWheel.joint, dParamVel2, realSpeed);
+        dJointSetHinge2Param(flWheel.joint, dParamFMax2, 500.0);
     }
 
     // reset manual mode flag
@@ -159,23 +167,52 @@ void vmCar::simControl()
 
 }
 
-void vmCar::setWheelJoint(vmCar::WheelLoc loc,dReal kps, dReal kds)
+void vmCar::simDraw()
+{
+    // draw chassis
+    dsSetColor(1.0,0.0,0.0); // red
+    dsDrawBoxD(dBodyGetPosition(chassis.body),dBodyGetRotation(chassis.body)
+               ,chassis.sides);
+    // draw wheels
+    dsSetColor(1.0,1.0,0.0);
+    dsDrawCylinderD(dBodyGetPosition(frWheel.body),dBodyGetRotation(frWheel.body),frWheel.length,frWheel.radius);
+    dsDrawCylinderD(dBodyGetPosition(flWheel.body),dBodyGetRotation(frWheel.body),flWheel.length,flWheel.radius);
+    dsDrawCylinderD(dBodyGetPosition(rrWheel.body),dBodyGetRotation(rrWheel.body),rrWheel.length,rrWheel.radius);
+    dsDrawCylinderD(dBodyGetPosition(rlWheel.body),dBodyGetRotation(rlWheel.body),rlWheel.length,rlWheel.radius);
+
+}
+
+void vmCar::setInitialControls(dReal steer, dReal speed, dReal steerGain)
+{
+    this->steer= steer;
+    this->speed= speed;
+    this->steerGain= steerGain;
+}
+
+dReal vmCar::getTotalMass()
+{
+    dReal mass= chassis.mass + frWheel.mass + flWheel.mass
+            + rrWheel.mass + rlWheel.mass;
+    return mass;
+}
+
+void vmCar::setWheelJoint(vm::WheelLoc loc)
 {
     vmWheel *wnow;
     bool lock= false;
     switch (loc) {
-    case vmCar::WheelLoc::FR:
+    case vm::WheelLoc::FR:
         wnow= &frWheel;
         break;
-    case vmCar::WheelLoc::FL:
-        wnow= &frWheel;
+    case vm::WheelLoc::FL:
+        wnow= &flWheel;
         break;
-    case vmCar::WheelLoc::RR:
-        wnow= &frWheel;
+    case vm::WheelLoc::RR:
+        wnow= &rrWheel;
         lock= true;
         break;
-    case vmCar::WheelLoc::RL:
-        wnow= &frWheel;
+    case vm::WheelLoc::RL:
+        wnow= &rlWheel;
         lock= true;
         break;
     default:
@@ -193,9 +230,6 @@ void vmCar::setWheelJoint(vmCar::WheelLoc loc,dReal kps, dReal kds)
     dJointSetHinge2Axis1(wnow->joint,0.0, 0.0, 1.0); // steering
     dJointSetHinge2Axis2(wnow->joint,0.0, 1.0, 0.0); // rotation
 
-    dJointSetHinge2Param(wnow->joint,dParamSuspensionERP, computeERP(kps,kds)); // suspension
-    dJointSetHinge2Param(wnow->joint,dParamSuspensionCFM, computeCFM(kps,kds)); // suspension
-
     // lock rear wheel to keep it align to 0 degree (longitudinally)
     if (lock)
     {
@@ -204,20 +238,53 @@ void vmCar::setWheelJoint(vmCar::WheelLoc loc,dReal kps, dReal kds)
     }
 }
 
-void vmCar::setWheel(vmCar::WheelLoc loc, dReal mass, dReal length, dReal radius)
+void vmCar::setWheelSuspension(vm::WheelLoc loc, dReal step, dReal kps, dReal kds)
 {
     vmWheel *wnow;
     switch (loc) {
-    case vmCar::WheelLoc::FR:
+    case vm::WheelLoc::FR:
         wnow= &frWheel;
         break;
-    case vmCar::WheelLoc::FL:
+    case vm::WheelLoc::FL:
+        wnow= &flWheel;
+        break;
+    case vm::WheelLoc::RR:
+        wnow= &rrWheel;
+        break;
+    case vm::WheelLoc::RL:
+        wnow= &rlWheel;
+        break;
+    default:
+        break;
+    }
+
+    dJointSetHinge2Param(wnow->joint,dParamSuspensionERP, computeERP(step,kps,kds)); // suspension
+    dJointSetHinge2Param(wnow->joint,dParamSuspensionCFM, computeCFM(step,kps,kds)); // suspension
+}
+
+void vmCar::setAllWheelSuspension(dReal step, dReal kps, dReal kds)
+{
+    setWheelSuspension(vm::WheelLoc::FR,step,kps,kds);
+    setWheelSuspension(vm::WheelLoc::FL,step,kps,kds);
+    setWheelSuspension(vm::WheelLoc::RR,step,kps,kds);
+    setWheelSuspension(vm::WheelLoc::RL,step,kps,kds);
+}
+
+void vmCar::setWheel(vm::WheelLoc loc, dReal mass, dReal length, dReal radius)
+{
+    vmWheel *wnow;
+    switch (loc) {
+    case vm::WheelLoc::FR:
         wnow= &frWheel;
         break;
-    case vmCar::WheelLoc::RR:
-        wnow= &frWheel; break;
-    case vmCar::WheelLoc::RL:
-        wnow= &frWheel;
+    case vm::WheelLoc::FL:
+        wnow= &flWheel;
+        break;
+    case vm::WheelLoc::RR:
+        wnow= &rrWheel;
+        break;
+    case vm::WheelLoc::RL:
+        wnow= &rlWheel;
         break;
     default:
         break;
@@ -239,25 +306,27 @@ void vmCar::setWheel(vmCar::WheelLoc loc, dReal mass, dReal length, dReal radius
 
     // set geom
     dGeomSetBody(wnow->geom,wnow->body);
+
+    wnow->initialized= true;
 }
 
 void vmCar::setAllWheel(dReal mass, dReal length, dReal radius)
 {
-    setWheel(vmCar::WheelLoc::FR,mass,length,radius);
-    setWheel(vmCar::WheelLoc::FL,mass,length,radius);
-    setWheel(vmCar::WheelLoc::RR,mass,length,radius);
-    setWheel(vmCar::WheelLoc::RL,mass,length,radius);
+    setWheel(vm::WheelLoc::FR,mass,length,radius);
+    setWheel(vm::WheelLoc::FL,mass,length,radius);
+    setWheel(vm::WheelLoc::RR,mass,length,radius);
+    setWheel(vm::WheelLoc::RL,mass,length,radius);
 }
 
 
 // compute ERP and CFM
-dReal vmCar::computeERP(dReal kp, dReal kd)
+dReal vmCar::computeERP(dReal step, dReal kp, dReal kd)
 {
-    return STEPSIZE*kp/(STEPSIZE*kp + kd);
+    return step*kp/(step*kp + kd);
 }
-dReal vmCar::computeCFM(dReal kp, dReal kd)
+dReal vmCar::computeCFM(dReal step, dReal kp, dReal kd)
 {
-    return 1.0/(STEPSIZE*kp + kd);
+    return 1.0/(step*kp + kd);
 }
 
 //bounded function
