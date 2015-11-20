@@ -46,6 +46,9 @@ class vmCar
         vmWheel rrWheel;
         vmWheel rlWheel;
 
+        int manualYes; // manual control flag
+        int brakeYes; // brake control flag
+
         // setter
         void setChassis(dReal mass, dReal length, dReal width, dReal height);
 
@@ -57,6 +60,9 @@ class vmCar
 
         void setWheelJoint(vmCar::WheelLoc loc,dReal kps, dReal kds);
         void setAllWheelJoint(dReal kps, dReal kds);
+
+        // simloop functions
+        void simControl();
 
 
 

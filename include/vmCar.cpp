@@ -4,6 +4,8 @@ vmCar::vmCar(dWorldID world, dSpaceID space)
 {
     this->world= world;
     this->space= space;
+    this->brakeYes=0;
+    this->manualYes=0;
 }
 
 
@@ -92,6 +94,68 @@ void vmCar::setAllWheelJoint(dReal kps, dReal kds)
     setWheelJoint(vmCar::WheelLoc::FL,kps,kds);
     setWheelJoint(vmCar::WheelLoc::RR,kps,kds);
     setWheelJoint(vmCar::WheelLoc::RL,kps,kds);
+
+}
+
+/* simloop control subfunction
+    inputs are control mode flags
+    int manualYes: 1: under manual input; 0 otherwise
+    int brakeYes: 1: brake activated; 0 otherwise
+*/
+void vmCar::simControl()
+{
+    // auto align steering angle
+    if (manualYes)
+        steerGain= 100;
+    else
+    {
+        steerGain= 100;
+        steer*= 0.98;
+        speed*= 0.999;
+    }
+
+    dReal dsteer, realSpeed;
+    dsteer = bounded(steer,-40.0,40.0) - dJointGetHinge2Angle1(FRJoint);
+    realSpeed = -bounded(speed, -14*M_PI, 30*M_PI);
+    // steer
+    dJointSetHinge2Param(FRJoint, dParamVel, steerGain*dsteer);
+    dJointSetHinge2Param(FRJoint, dParamFMax, 1000.0);
+    dJointSetHinge2Param (FRJoint,dParamLoStop,-40.0*M_PI/180.0);
+    dJointSetHinge2Param (FRJoint,dParamHiStop,40.0*M_PI/180.0);
+    dJointSetHinge2Param (FRJoint,dParamFudgeFactor,0.1);
+
+    dJointSetHinge2Param(FLJoint, dParamVel, steerGain*dsteer);
+    dJointSetHinge2Param(FLJoint, dParamFMax, 1000.0);
+    dJointSetHinge2Param (FLJoint,dParamLoStop,-40.0*M_PI/180.0);
+    dJointSetHinge2Param (FLJoint,dParamHiStop,40.0*M_PI/180.0);
+    dJointSetHinge2Param (FLJoint,dParamFudgeFactor,0.1);
+    // speed
+    if (brakeYes)
+    {
+        dReal factor= 0.1;
+        dJointSetHinge2Param(RRJoint, dParamVel2, dJointGetHinge2Param(RRJoint,dParamVel2)*factor);
+        dJointSetHinge2Param(RRJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(RLJoint, dParamVel2, dJointGetHinge2Param(RLJoint,dParamVel2)*factor);
+        dJointSetHinge2Param(RLJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);//dJointGetHinge2Param(FRJoint,dParamVel2)*factor);
+        dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);//dJointGetHinge2Param(FLJoint,dParamVel2)*factor);
+        dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
+    }
+    else
+    {
+        // turn off rear wheels
+        dJointSetHinge2Param(RRJoint, dParamFMax2, 0.0);
+        dJointSetHinge2Param(RLJoint, dParamFMax2, 0.0);
+        // set up front wheels
+        dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);
+        dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
+        dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);
+        dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
+    }
+
+    // reset manual mode flag
+    manualYes= 0;
 
 }
 

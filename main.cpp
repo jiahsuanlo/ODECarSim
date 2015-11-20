@@ -23,6 +23,10 @@ dsFunctions fn;
 // define some constants
 dReal STEPSIZE= 0.01;
 
+// obstacle balls
+const int nObs= 250;
+sphere ball[nObs];
+
 // chassis parameters
 dReal chassisMass= 3000;
 dReal chassisLength= 2.0;
@@ -39,40 +43,24 @@ dReal kds= 1000.0;   // suspension damping
 // control parameters
 dReal speed= 0.0;
 dReal steer= 0.0;
-
 dReal steerGain= 100;
+
+// control mode flags
 int manualYes= 0;
 int brakeYes=0;
-
-// obstacle balls
-const int nObs= 250;
-sphere ball[nObs];
 
 
 // collision callback
 static void nearCallback(void *data, dGeomID g1, dGeomID g2)
 {
     static int maxContacts= 10;
-    // exit if two body are connected
-    dBodyID b1= dGeomGetBody(g1);
-    dBodyID b2= dGeomGetBody(g2);
-    if (b1 && b2 && dAreConnected(b1,b2))
-        return;
-
-    int isGround = ((ground == g1) | (ground == g2));
-
-    for (int i=0;i<nObs;++i)
-    {
-        int isObstacle= ((ball[i].geom==g1) | (ball[i].geom==g2));
-        isGround = isGround | isObstacle;
-    }
 
     // check contacts
     dContact contact[maxContacts];
     int nContact= dCollide(g1,g2,maxContacts,&contact[0].geom,sizeof(dContact));
 
     // treat contacts
-    if (isGround && nContact>0)
+    if (nContact>0)
     {
         for (int i=0; i<nContact; ++i)
         {
@@ -92,71 +80,13 @@ static void nearCallback(void *data, dGeomID g1, dGeomID g2)
     }
 }
 
-
-
-void simControl()
-{
-
-    // auto align steering angle
-    if (manualYes)
-        steerGain= 100;
-    else
-    {
-        steerGain= 100;
-        steer*= 0.98;
-        speed*= 0.999;
-    }
-
-    dReal dsteer, realSpeed;
-    dsteer = bounded(steer,-40.0,40.0) - dJointGetHinge2Angle1(FRJoint);
-    realSpeed = -bounded(speed, -14*M_PI, 30*M_PI);
-    // steer
-    dJointSetHinge2Param(FRJoint, dParamVel, steerGain*dsteer);
-    dJointSetHinge2Param(FRJoint, dParamFMax, 1000.0);
-    dJointSetHinge2Param (FRJoint,dParamLoStop,-40.0*M_PI/180.0);
-    dJointSetHinge2Param (FRJoint,dParamHiStop,40.0*M_PI/180.0);
-    dJointSetHinge2Param (FRJoint,dParamFudgeFactor,0.1);
-
-    dJointSetHinge2Param(FLJoint, dParamVel, steerGain*dsteer);
-    dJointSetHinge2Param(FLJoint, dParamFMax, 1000.0);
-    dJointSetHinge2Param (FLJoint,dParamLoStop,-40.0*M_PI/180.0);
-    dJointSetHinge2Param (FLJoint,dParamHiStop,40.0*M_PI/180.0);
-    dJointSetHinge2Param (FLJoint,dParamFudgeFactor,0.1);
-    // speed
-    if (brakeYes)
-    {
-        dReal factor= 0.1;
-        dJointSetHinge2Param(RRJoint, dParamVel2, dJointGetHinge2Param(RRJoint,dParamVel2)*factor);
-        dJointSetHinge2Param(RRJoint, dParamFMax2, 10000.0);
-        dJointSetHinge2Param(RLJoint, dParamVel2, dJointGetHinge2Param(RLJoint,dParamVel2)*factor);
-        dJointSetHinge2Param(RLJoint, dParamFMax2, 10000.0);
-        dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);//dJointGetHinge2Param(FRJoint,dParamVel2)*factor);
-        dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
-        dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);//dJointGetHinge2Param(FLJoint,dParamVel2)*factor);
-        dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
-    }
-    else
-    {
-        // turn off rear wheels
-        dJointSetHinge2Param(RRJoint, dParamFMax2, 0.0);
-        dJointSetHinge2Param(RLJoint, dParamFMax2, 0.0);
-        // set up front wheels
-        dJointSetHinge2Param(FRJoint, dParamVel2, realSpeed);
-        dJointSetHinge2Param(FRJoint, dParamFMax2, 10000.0);
-        dJointSetHinge2Param(FLJoint, dParamVel2, realSpeed);
-        dJointSetHinge2Param(FLJoint, dParamFMax2, 10000.0);
-    }
-
-    // reset manual mode flag
-    manualYes= 0;
-}
-
 // simulation loop
 static void simloop(int pause)
 {
 
-    simControl();
-    dSpaceCollide(space,0,&nearCallback);
+    car.simControl(manualYes,brakeYes);
+
+    dSpaceCollide2(space,groundSpace,0,&nearCallback);
     dWorldStep(world,STEPSIZE);
     // collision setup
     dJointGroupEmpty(contactGroup);
@@ -223,8 +153,8 @@ void setDSFunctions()
     fn.start= &start;
     fn.stop= NULL;
     fn.command= &manualCmd;
-    fn.path_to_textures= "c:/dev/ode-0.13/drawstuff/textures";  // win version
-    //fn.path_to_textures= "/home/jlo/ode-0.13/drawstuff/textures";  // linux version
+    //fn.path_to_textures= "c:/dev/ode-0.13/drawstuff/textures";  // win version
+    fn.path_to_textures= "/home/jlo/ode-0.13/drawstuff/textures";  // linux version
 }
 
 // create bodies
@@ -261,6 +191,7 @@ int main (int argc, char **argv)
     // create basis
     world= dWorldCreate();
     space= dHashSpaceCreate(0);
+    groundSpace= dHashSpaceCreate(0);
     contactGroup= dJointGroupCreate(0);
 
     //set gravity
