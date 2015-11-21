@@ -11,6 +11,12 @@
 #define dsDrawSphere dsDrawSphereD
 #endif
 
+#ifdef _WIN32
+   #define texturePath "c:/dev/ode-0.13/drawstuff/textures";  // win32 version
+#elif __linux__
+   #define texturePath "/home/jlo/ode-0.13/drawstuff/textures";  // linux version
+#endif
+
 static dWorldID world;
 static dSpaceID space;
 static dSpaceID vehicleSpace;
@@ -169,7 +175,8 @@ void setDSFunctions()
     fn.start= &start;
     fn.stop= NULL;
     fn.command= &manualCmd;
-    fn.path_to_textures= "c:/dev/ode-0.13/drawstuff/textures";  // win version
+    fn.path_to_textures= texturePath;
+    //fn.path_to_textures= "c:/dev/ode-0.13/drawstuff/textures";  // win version
     //fn.path_to_textures= "/home/jlo/ode-0.13/drawstuff/textures";  // linux version
 }
 

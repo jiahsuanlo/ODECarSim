@@ -3,7 +3,7 @@ CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
 
-DEFINES += dDOUBLE
+#DEFINES += dDOUBLE
 SOURCES += main.cpp \
     include/vmCar.cpp
 
@@ -16,29 +16,49 @@ HEADERS += \
 
 RC_FILE += /home/jlo/ode-0.13/drawstuff/src/resources.rc
 
-win32:CONFIG(release, debug|release): LIBS += -L/home/jlo/ode-0.13/lib/DebugDoubleLib/ -ldrawstuff
-else:win32:CONFIG(debug, debug|release): LIBS += -L/home/jlo/ode-0.13/lib/DebugDoubleLib/ -ldrawstuffd
 
-INCLUDEPATH += /home/jlo/ode-0.13/lib/DebugDoubleLib
-DEPENDPATH += /home/jlo/ode-0.13/lib/DebugDoubleLib
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../ode-0.13/lib/DebugDoubleLib/release/ -ldrawstuffd
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../ode-0.13/lib/DebugDoubleLib/debug/ -ldrawstuffd
+else:unix: LIBS += -L$$PWD/../../../ode-0.13/lib/DebugDoubleLib/ -ldrawstuffd
 
-win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += /home/jlo/ode-0.13/lib/DebugDoubleLib/libdrawstuff.a
-else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += /home/jlo/ode-0.13/lib/DebugDoubleLib/libdrawstuffd.a
-else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += /home/jlo/ode-0.13/lib/DebugDoubleLib/drawstuff.lib
-else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += /home/jlo/ode-0.13/lib/DebugDoubleLib/drawstuffd.lib
+INCLUDEPATH += $$PWD/../../../ode-0.13/lib/DebugDoubleLib
+DEPENDPATH += $$PWD/../../../ode-0.13/lib/DebugDoubleLib
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/release/libdrawstuffd.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/debug/libdrawstuffd.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/release/drawstuffd.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/debug/drawstuffd.lib
+else:unix: PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/libdrawstuffd.a
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../ode-0.13/lib/DebugDoubleLib/release/ -lode_doubled
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../ode-0.13/lib/DebugDoubleLib/debug/ -lode_doubled
+else:unix: LIBS += -L$$PWD/../../../ode-0.13/lib/DebugDoubleLib/ -lode_doubled
+
+INCLUDEPATH += $$PWD/../../../ode-0.13/lib/DebugDoubleLib
+DEPENDPATH += $$PWD/../../../ode-0.13/lib/DebugDoubleLib
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/release/libode_doubled.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/debug/libode_doubled.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/release/ode_doubled.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/debug/ode_doubled.lib
+else:unix: PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/DebugDoubleLib/libode_doubled.a
 
 
+unix:!macx: LIBS += -L$$PWD/../../../ode-0.13/lib/ReleaseDoubleLib/ -ldrawstuff
 
-win32:CONFIG(release, debug|release): LIBS += -L/home/jlo/ode-0.13/lib/DebugDoubleLib/ -lode_double
-else:win32:CONFIG(debug, debug|release): LIBS += -L/home/jlo/ode-0.13/lib/DebugDoubleLib/ -lode_doubled
+INCLUDEPATH += $$PWD/../../../ode-0.13/lib/ReleaseDoubleLib
+DEPENDPATH += $$PWD/../../../ode-0.13/lib/ReleaseDoubleLib
 
-INCLUDEPATH += /home/jlo/ode-0.13/lib/DebugDoubleLib
-DEPENDPATH += /home/jlo/ode-0.13/lib/DebugDoubleLib
+unix:!macx: PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/ReleaseDoubleLib/libdrawstuff.a
 
-win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += /home/jlo/ode-0.13/lib/DebugDoubleLib/libode_double.a
-else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += /home/jlo/ode-0.13/lib/DebugDoubleLib/libode_doubled.a
-else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += /home/jlo/ode-0.13/lib/DebugDoubleLib/ode_double.lib
-else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += /home/jlo/ode-0.13/lib/DebugDoubleLib/ode_doubled.lib
+unix:!macx: LIBS += -L$$PWD/../../../ode-0.13/lib/ReleaseDoubleLib/ -lode_double
+
+INCLUDEPATH += $$PWD/../../../ode-0.13/lib/ReleaseDoubleLib
+DEPENDPATH += $$PWD/../../../ode-0.13/lib/ReleaseDoubleLib
+
+unix:!macx: PRE_TARGETDEPS += $$PWD/../../../ode-0.13/lib/ReleaseDoubleLib/libode_double.a
+
+
 
 
 LIBS += -lode_doubled
