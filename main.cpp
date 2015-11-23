@@ -32,18 +32,18 @@ dReal STEPSIZE= 0.01;
 
 // ground and obstacle balls
 dGeomID ground;
-const int nObs= 250;
+const int nObs= 10;
 sphere ball[nObs];
 
 // chassis parameters
-dReal chassisMass= 1000;
+dReal chassisMass= 1300;
 dReal chassisLength= 2.0;
 dReal chassisWidth= 1.5;
 dReal chassisHeight= 0.75;
 
 // wheel paremeters
 dReal wheelMass= 10;
-dReal wheelRadius= 0.3;  // wheel radius
+dReal wheelRadius= 0.4;  // wheel radius
 dReal wheelWidth= 0.2;  // wheel width
 dReal kps= 100000.0;  // suspension stiffness
 dReal kds= 8000.0;   // suspension damping
@@ -57,6 +57,9 @@ dReal steerGain= 100;
 int manualYes= 0;
 int brakeYes=0;
 
+// output file
+FILE *fp_pos;
+FILE *fp_jnt;
 
 // collision callback
 static void nearCallback(void *data, dGeomID g1, dGeomID g2)
@@ -99,17 +102,68 @@ static void nearCallback(void *data, dGeomID g1, dGeomID g2)
     }
 }
 
+/*static void nearCallback1(void *data, dGeomID g1, dGeomID g2)
+{
+    static int maxContacts= 10;
+
+    // only collide things with the ground
+    int isGround1, isGround2,isGround;
+    for (int i = 0; i < nObs; ++i)
+    {
+        isGround1= ((g1==ground) ||(g1==bumps[i].geom));
+        isGround2= ((g2==ground) ||(g2==bumps[i].geom));
+        isGround= isGround1 || isGround2;
+    }
+
+    if(isGround)
+    {
+        // check contacts
+        dContact contact[maxContacts];
+        int nContact= dCollide(g1,g2,maxContacts,&contact[0].geom,sizeof(dContact));
+
+        // treat contacts
+        if (nContact>0)
+        {
+            for (int i=0; i<nContact; ++i)
+            {
+                contact[i].surface.mode = dContactApprox1_1|dContactApprox1_2
+                        |dContactSoftCFM|dContactSoftERP|dContactBounce;
+
+                contact[i].surface.mu = 1;
+                contact[i].surface.mu2 = 1;
+                contact[i].surface.bounce= 1.0;
+                //contact[i].surface.slip1 = 1e-10;
+                //contact[i].surface.slip2 = 1e-10;
+                contact[i].surface.soft_erp = 0.01;
+                contact[i].surface.soft_cfm = 1e-5;
+
+                // build contact joint now
+                dJointID c= dJointCreateContact(world,contactGroup,&contact[i]);
+                dJointAttach(c,dGeomGetBody(contact[i].geom.g1),dGeomGetBody(contact[i].geom.g2));
+                //dJointAttach (c,dGeomGetBody(contact[i].geom.g1),dGeomGetBody(contact[i].geom.g2));
+
+            }
+        }
+    }
+}*/
+
+
 // simulation loop
 static void simloop(int pause)
 {
 
+    static dReal simCt;
+
     // update suspension
     car->setAllWheelSuspension(STEPSIZE,kps,kds);
     //set control
-    car->simControl();
+    //car->simControl();
+    car->simForward(20.0);
 
     dSpaceCollide(space,0,&nearCallback);
     dWorldStep(world,STEPSIZE);
+    simCt ++;
+
     // collision setup
     dJointGroupEmpty(contactGroup);
 
@@ -121,42 +175,24 @@ static void simloop(int pause)
     {
         dsDrawSphere(dGeomGetPosition(ball[i].geom),dGeomGetRotation(ball[i].geom),ball[i].radius);
     }
+
+    // report
+    car->listVehiclePosition(fp_pos, simCt,STEPSIZE);
+    car->listWheelForce(fp_jnt,simCt,STEPSIZE);
+
+    //printf("\n");
+
+
+    // termination condition
+    const dReal *pos= dBodyGetPosition(car->chassis.body);
+    if (pos[0]>60.0)
+        dsStop();
 }
 
-
-// manual command
-void manualCmd(int cmd)
+// command
+void command(int cmd)
 {
-    car->manualYes= 1;
-    car->brakeYes= 0;
-    switch (cmd)
-    {
-        case 'i': case 'I':
-           car->speed+= 0.25*M_PI;
-           car->steer*= 0.98;
-            break;
-        case ',': case '<':
-            car->speed*= 0.1*M_PI;
-            car->brakeYes = 1;
-            car->steer*= 0.98;
-            break;
-        case 'k': case 'K':
-            car->speed-= 0.25*M_PI;
-            car->steer*= 0.98;
-            break;
-        case 'j': case 'J':
-            car->steer= -40*M_PI/180;
-            break;
-        case 'l': case 'L':
-            car->steer= 40*M_PI/180;
-            break;
-        default:
-            car->manualYes = 0;
-            car->steer*= 0.98;
-            car->speed*= 0.999;
-    }
-
-    //car->setInitialControls(steer,speed,steerGain);
+    car->simCommand(cmd);
 }
 
 // camera setup
@@ -174,7 +210,7 @@ void setDSFunctions()
     fn.step= &simloop;
     fn.start= &start;
     fn.stop= NULL;
-    fn.command= &manualCmd;
+    fn.command= &command;
     fn.path_to_textures= texturePath;
     //fn.path_to_textures= "c:/dev/ode-0.13/drawstuff/textures";  // win version
     //fn.path_to_textures= "/home/jlo/ode-0.13/drawstuff/textures";  // linux version
@@ -208,6 +244,25 @@ void createObstacles()
     }
 }
 
+// create Cylinder obstacles
+void createAlignedObstacles()
+{
+    dReal xo, yo;
+
+    for (int i=0; i<nObs; ++i)
+    {
+        xo= (i+1)*5.0;
+        yo= chassisWidth*0.5;
+        ball[i].radius= 2;
+        ball[i].geom= dCreateSphere(groundSpace,ball[i].radius);
+        dGeomSetPosition(ball[i].geom,xo,yo,-1.8);
+        //dMatrix3 rmat;
+        //dRFromAxisAndAngle(rmat,1.0, 0.0, 0.0, 90.0*M_PI/180.0);
+
+        //dGeomSetRotation(bumps[i].geom, rmat);
+    }
+}
+
 // main
 int main (int argc, char **argv)
 {
@@ -229,13 +284,21 @@ int main (int argc, char **argv)
     // create ground
     ground= dCreatePlane(groundSpace,0.0, 0.0, 1.0, 0.0);  // z= 0 plane
     // create obstacles
-    createObstacles();
+    createAlignedObstacles();
 
     // create car
     createCar();
 
+
+    // output files
+    fp_pos= fopen("vehiclePos.txt","w");
+    fp_jnt= fopen("wheelForce.txt","w");
+
     // start simulation
     dsSimulationLoop(argc,argv,1000,800,&fn);
+
+    fclose(fp_pos);
+    fclose(fp_jnt);
 
     dWorldDestroy(world);
     dSpaceDestroy(space);
