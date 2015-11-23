@@ -19,6 +19,7 @@ struct vmWheel{
     dBodyID body;
     dGeomID geom;
     dJointID joint;
+    dJointFeedback *feedback;
     dJointID motor;  //aMotor
     dJointID brake;  //aMotor
     dReal mass;
@@ -72,7 +73,9 @@ class vmCar
         void setAllWheelSuspension(dReal step,dReal kps, dReal kds);
 
         // simloop functions
+        void simCommand(int cmd);
         void simControl();
+        void simForward(dReal mphSpeed);
         void simDraw();
 
         // control funcitons
@@ -81,18 +84,27 @@ class vmCar
         // getter
         dReal getTotalMass();
 
-    protected:
+        // report functions
+        void listVehiclePosition(FILE *fp, dReal simCt, dReal step);
+        void listWheelForce(FILE *fp, dReal simCt, dReal step);
+
+protected:
     private:
         // compute ERP and CFM
         dReal computeERP(dReal step, dReal kp, dReal kd);
         dReal computeCFM(dReal step, dReal kp, dReal kd);
         dReal bounded(dReal var, dReal lb, dReal ub);
-
 };
 
 struct sphere{
     dGeomID geom;
     dReal radius;
+};
+
+struct cylinder{
+    dGeomID geom;
+    dReal radius;
+    dReal length;
 };
 
 
