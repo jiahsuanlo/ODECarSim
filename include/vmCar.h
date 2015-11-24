@@ -25,6 +25,7 @@ struct vmWheel{
     dReal mass;
     dReal length,radius;
     bool initialized= false;
+    dReal dzSuspension=0.0;
 
     //vmWheel(): body(0),geom(0),joint(0),motor(0),mass(0),
     //    length(0),radius(0)
@@ -57,6 +58,7 @@ class vmCar
         dReal steer;
         dReal steerGain;
 
+
         // setter
         void setChassis(dReal mass, dReal length, dReal width, dReal height);
 
@@ -76,6 +78,9 @@ class vmCar
         void simCommand(int cmd);
         void simControl();
         void simForward(dReal mphSpeed);
+        void simSlowSteer();
+
+        // simloop draw function
         void simDraw();
 
         // control funcitons
@@ -83,6 +88,8 @@ class vmCar
 
         // getter
         dReal getTotalMass();
+        dReal getNonlinearKd(vm::WheelLoc loc, dReal step);
+
 
         // report functions
         void listVehiclePosition(FILE *fp, dReal simCt, dReal step);
@@ -105,6 +112,11 @@ struct cylinder{
     dGeomID geom;
     dReal radius;
     dReal length;
+};
+
+struct box{
+    dGeomID geom;
+    dReal sides[3]; // length width height
 };
 
 

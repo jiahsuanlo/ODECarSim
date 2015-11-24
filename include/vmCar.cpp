@@ -249,19 +249,77 @@ dReal vmCar::getTotalMass()
     return mass;
 }
 
+dReal vmCar::getNonlinearKd(vm::WheelLoc loc, dReal step)
+{
+    // select wheel
+    vmWheel *wnow;
+    switch (loc) {
+    case vm::WheelLoc::FR:
+        wnow= &frWheel;
+        break;
+    case vm::WheelLoc::FL:
+        wnow= &flWheel;
+        break;
+    case vm::WheelLoc::RR:
+        wnow= &rrWheel;
+        break;
+    case vm::WheelLoc::RL:
+        wnow= &rlWheel;
+        break;
+    default:
+        break;
+    }
+
+    dVector3 res1,res2;
+    dJointGetHinge2Anchor(wnow->joint, res1);
+    dJointGetHinge2Anchor2(wnow->joint, res2);
+    dReal dzNew = res1[2]- res2[2];
+
+    // compute vz
+    dReal vz= (dzNew- wnow->dzSuspension)/step;
+
+    // update old dz
+    wnow->dzSuspension= dzNew;
+
+    // calculate kd
+    dReal kd;
+    if (vz<0.0)
+        kd= 1000.0;
+    else if (vz<250.0)
+        kd= 4000.0;
+    else
+        kd= 1539.0;
+
+    //printf("dz=%12.6f; vz=%12.6f; kd=%12.6f\n",
+    //       dzNew, vz, kd);
+    return kd;
+}
+
+
 void vmCar::listVehiclePosition(FILE* fp, dReal simCt, dReal step)
 {
     const dReal *pos= dBodyGetPosition(chassis.body);
+
+    const dReal *ep= dBodyGetQuaternion(chassis.body);
+    dReal roll= ep[0]*ep[1];
+    dReal pitch= ep[0]*ep[2];
+    dReal yaw= ep[0]*ep[3];
+
     if (simCt==1)
     {
-        fprintf(fp,"%12s%12s%12s%12s\n","Time","PosX","PosY","PosZ");
-        fprintf(fp,"%12.4f%12.4f%12.4f%12.4f\n",simCt*step,
+        fprintf(fp,"%12s%12s%12s%12s","Time","PosX","PosY","PosZ");
+        fprintf(fp,"%12s%12s%12s\n","Roll","Pitch","Yaw");
+        fprintf(fp,"%12.4f%12.4f%12.4f%12.4f",simCt*step,
                pos[0],pos[1],pos[2]);
+        fprintf(fp,"%12.4f%12.4f%12.4f\n",
+               roll,pitch,yaw);
     }
     else
     {
-        fprintf(fp,"%12.4f%12.4f%12.4f%12.4f\n",simCt*step,
+        fprintf(fp,"%12.4f%12.4f%12.4f%12.4f",simCt*step,
                pos[0],pos[1],pos[2]);
+        fprintf(fp,"%12.4f%12.4f%12.4f\n",
+               roll,pitch,yaw);
     }
 }
 
