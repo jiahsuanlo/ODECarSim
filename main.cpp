@@ -34,6 +34,7 @@ dReal STEPSIZE= 0.01;
 dGeomID ground;
 const int nObs= 10;
 sphere ball[nObs];
+box obs[nObs];
 
 // chassis parameters
 dReal chassisMass= 1300;
@@ -45,8 +46,8 @@ dReal chassisHeight= 0.75;
 dReal wheelMass= 10;
 dReal wheelRadius= 0.4;  // wheel radius
 dReal wheelWidth= 0.2;  // wheel width
-dReal kps= 100000.0;  // suspension stiffness
-dReal kds= 8000.0;   // suspension damping
+dReal kps= 55000.0;  // suspension stiffness
+dReal kds= 1579.0; // 4000.0;  //1579.0;   // suspension damping
 
 // control parameters
 dReal speed= 0.0;
@@ -102,51 +103,6 @@ static void nearCallback(void *data, dGeomID g1, dGeomID g2)
     }
 }
 
-/*static void nearCallback1(void *data, dGeomID g1, dGeomID g2)
-{
-    static int maxContacts= 10;
-
-    // only collide things with the ground
-    int isGround1, isGround2,isGround;
-    for (int i = 0; i < nObs; ++i)
-    {
-        isGround1= ((g1==ground) ||(g1==bumps[i].geom));
-        isGround2= ((g2==ground) ||(g2==bumps[i].geom));
-        isGround= isGround1 || isGround2;
-    }
-
-    if(isGround)
-    {
-        // check contacts
-        dContact contact[maxContacts];
-        int nContact= dCollide(g1,g2,maxContacts,&contact[0].geom,sizeof(dContact));
-
-        // treat contacts
-        if (nContact>0)
-        {
-            for (int i=0; i<nContact; ++i)
-            {
-                contact[i].surface.mode = dContactApprox1_1|dContactApprox1_2
-                        |dContactSoftCFM|dContactSoftERP|dContactBounce;
-
-                contact[i].surface.mu = 1;
-                contact[i].surface.mu2 = 1;
-                contact[i].surface.bounce= 1.0;
-                //contact[i].surface.slip1 = 1e-10;
-                //contact[i].surface.slip2 = 1e-10;
-                contact[i].surface.soft_erp = 0.01;
-                contact[i].surface.soft_cfm = 1e-5;
-
-                // build contact joint now
-                dJointID c= dJointCreateContact(world,contactGroup,&contact[i]);
-                dJointAttach(c,dGeomGetBody(contact[i].geom.g1),dGeomGetBody(contact[i].geom.g2));
-                //dJointAttach (c,dGeomGetBody(contact[i].geom.g1),dGeomGetBody(contact[i].geom.g2));
-
-            }
-        }
-    }
-}*/
-
 
 // simulation loop
 static void simloop(int pause)
@@ -155,7 +111,21 @@ static void simloop(int pause)
     static dReal simCt;
 
     // update suspension
+
+    // nonlinear block
+    /*dReal nl_kd;
+    nl_kd= car->getNonlinearKd(vm::FR,STEPSIZE);
+    car->setWheelSuspension(vm::FR,STEPSIZE,kps,nl_kd);
+    nl_kd= car->getNonlinearKd(vm::FL,STEPSIZE);
+    car->setWheelSuspension(vm::FL,STEPSIZE,kps,nl_kd);
+    nl_kd= car->getNonlinearKd(vm::RR,STEPSIZE);
+    car->setWheelSuspension(vm::RR,STEPSIZE,kps,nl_kd);
+    nl_kd= car->getNonlinearKd(vm::RL,STEPSIZE);
+    car->setWheelSuspension(vm::RL,STEPSIZE,kps,nl_kd);*/
+
+
     car->setAllWheelSuspension(STEPSIZE,kps,kds);
+
     //set control
     //car->simControl();
     car->simForward(20.0);
@@ -173,7 +143,9 @@ static void simloop(int pause)
     // draw obstacles
     for (int i=0;i<nObs;++i)
     {
-        dsDrawSphere(dGeomGetPosition(ball[i].geom),dGeomGetRotation(ball[i].geom),ball[i].radius);
+        //dsDrawSphere(dGeomGetPosition(ball[i].geom),dGeomGetRotation(ball[i].geom),ball[i].radius);
+        dsDrawBoxD(dGeomGetPosition(obs[i].geom)
+                   ,dGeomGetRotation(obs[i].geom),obs[i].sides);
     }
 
     // report
@@ -198,8 +170,8 @@ void command(int cmd)
 // camera setup
 void start()
 {
-  static float xyz[3] = {0.0,-30.0,10.0};
-  static float hpr[3] = {90.0,-30.0,0.0};
+  static float xyz[3] = {-5.0,-30.0,10.0};
+  static float hpr[3] = {45.0,-30.0,0.0};
   dsSetViewpoint (xyz,hpr);
 }
 
@@ -244,7 +216,7 @@ void createObstacles()
     }
 }
 
-// create Cylinder obstacles
+// create aligned ball obstacles
 void createAlignedObstacles()
 {
     dReal xo, yo;
@@ -256,6 +228,29 @@ void createAlignedObstacles()
         ball[i].radius= 2;
         ball[i].geom= dCreateSphere(groundSpace,ball[i].radius);
         dGeomSetPosition(ball[i].geom,xo,yo,-1.8);
+        //dMatrix3 rmat;
+        //dRFromAxisAndAngle(rmat,1.0, 0.0, 0.0, 90.0*M_PI/180.0);
+
+        //dGeomSetRotation(bumps[i].geom, rmat);
+    }
+}
+
+// create Box obstacles
+void createBoxObstacles()
+{
+    dReal xo, yo;
+
+    for (int i=0; i<nObs; ++i)
+    {
+        xo= (i+1)*5.0;
+        yo= chassisWidth*0.5;
+        obs[i].sides[0]= 0.5; //length
+        obs[i].sides[1]= 5;   // width
+        obs[i].sides[2]= 0.2;  //height
+        obs[i].geom= dCreateBox(groundSpace,obs[i].sides[0],
+                                 obs[i].sides[1],obs[i].sides[2]);
+
+        dGeomSetPosition(obs[i].geom,xo,yo,0.0);
         //dMatrix3 rmat;
         //dRFromAxisAndAngle(rmat,1.0, 0.0, 0.0, 90.0*M_PI/180.0);
 
@@ -284,7 +279,8 @@ int main (int argc, char **argv)
     // create ground
     ground= dCreatePlane(groundSpace,0.0, 0.0, 1.0, 0.0);  // z= 0 plane
     // create obstacles
-    createAlignedObstacles();
+    //createAlignedObstacles();
+    createBoxObstacles();
 
     // create car
     createCar();
