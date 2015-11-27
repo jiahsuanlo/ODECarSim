@@ -4,9 +4,7 @@
 vmCar::vmCar(dWorldID world, dSpaceID space)
 {
     this->world= world;
-    this->space= space;
-    this->brakeYes=0;
-    this->manualYes=0;
+    this->space= space;    
 }
 
 
@@ -539,5 +537,7 @@ dReal vmCar::bounded(dReal var, dReal lb, dReal ub)
         out= var;
     return out;
 }
+
+
 
 

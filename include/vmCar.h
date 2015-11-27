@@ -51,12 +51,12 @@ class vmCar
         vmWheel rrWheel;
         vmWheel rlWheel;
 
-        int manualYes; // manual control flag
-        int brakeYes; // brake control flag
+        int manualYes {0}; // manual control flag
+        int brakeYes {0}; // brake control flag
 
-        dReal speed;
-        dReal steer;
-        dReal steerGain;
+        dReal speed {0.0};
+        dReal steer {0.0};
+        dReal steerGain {0.0};
 
 
         // setter
@@ -95,12 +95,14 @@ class vmCar
         void listVehiclePosition(FILE *fp, dReal simCt, dReal step);
         void listWheelForce(FILE *fp, dReal simCt, dReal step);
 
-protected:
-    private:
+    protected:
         // compute ERP and CFM
         dReal computeERP(dReal step, dReal kp, dReal kd);
         dReal computeCFM(dReal step, dReal kp, dReal kd);
         dReal bounded(dReal var, dReal lb, dReal ub);
+
+    private:
+
 };
 
 struct sphere{
