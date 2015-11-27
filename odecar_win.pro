@@ -16,33 +16,36 @@ HEADERS += \
 
 RC_FILE += "C:\dev\ode-0.13\drawstuff\src\resources.rc"
 
-win32:CONFIG(release, debug|release): LIBS += -LC:/dev/ode-0.13/lib/DebugDoubleLib/ -ldrawstuff
+win32:CONFIG(release, debug|release): LIBS += -LC:/dev/ode-0.13/lib/ReleaseDoubleLib/ -ldrawstuff
 else:win32:CONFIG(debug, debug|release): LIBS += -LC:/dev/ode-0.13/lib/DebugDoubleLib/ -ldrawstuffd
 
 INCLUDEPATH += C:/dev/ode-0.13/lib/DebugDoubleLib
 DEPENDPATH += C:/dev/ode-0.13/lib/DebugDoubleLib
+INCLUDEPATH += C:/dev/ode-0.13/lib/ReleaseDoubleLib
+DEPENDPATH += C:/dev/ode-0.13/lib/ReleaseDoubleLib
 
-win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += C:./dev/ode-0.13/lib/DebugDoubleLib/libdrawstuff.a
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/ReleaseDoubleLib/libdrawstuff.a
 else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/DebugDoubleLib/libdrawstuffd.a
-else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/DebugDoubleLib/drawstuff.lib
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/ReleaseDoubleLib/drawstuff.lib
 else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/DebugDoubleLib/drawstuffd.lib
 
 
-
-win32:CONFIG(release, debug|release): LIBS += -LC:/dev/ode-0.13/lib/DebugDoubleLib/ -lode_double
+win32:CONFIG(release, debug|release): LIBS += -LC:/dev/ode-0.13/lib/ReleaseDoubleLib/ -lode_double
 else:win32:CONFIG(debug, debug|release): LIBS += -LC:/dev/ode-0.13/lib/DebugDoubleLib/ -lode_doubled
 
 INCLUDEPATH += C:/dev/ode-0.13/lib/DebugDoubleLib
 DEPENDPATH += C:/dev/ode-0.13/lib/DebugDoubleLib
+INCLUDEPATH += C:/dev/ode-0.13/lib/ReleaseDoubleLib
+DEPENDPATH += C:/dev/ode-0.13/lib/ReleaseDoubleLib
 
-win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/DebugDoubleLib/libode_double.a
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/ReleaseDoubleLib/libode_double.a
 else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/DebugDoubleLib/libode_doubled.a
-else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/DebugDoubleLib/ode_double.lib
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/ReleaseDoubleLib/ode_double.lib
 else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += C:/dev/ode-0.13/lib/DebugDoubleLib/ode_doubled.lib
 
 
-LIBS += -lode_doubled
-LIBS += -ldrawstuffd
+#LIBS += -lode_doubled
+#LIBS += -ldrawstuffd
 LIBS += -luser32
 LIBS += -lwinmm
 LIBS += -lgdi32
