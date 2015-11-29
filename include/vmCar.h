@@ -68,7 +68,7 @@ class vmCar
         void setCMPosition(dReal x, dReal y, dReal z);
         void setCarOnGround(dReal x, dReal y);
 
-        void setWheelJoint(vm::WheelLoc loc);
+        virtual void setWheelJoint(vm::WheelLoc loc);
         void setAllWheelJoint();
 
         void setWheelSuspension(vm::WheelLoc loc,dReal step,dReal kps, dReal kds);

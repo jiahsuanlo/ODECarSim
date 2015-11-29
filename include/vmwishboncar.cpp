@@ -11,3 +11,9 @@ vmWishbonCar::~vmWishboneCar()
 
 }
 
+void vmWishbonCar::setWheelJoint(vm::WheelLoc loc)
+{
+
+
+}
+

@@ -5,14 +5,16 @@ CONFIG -= qt
 
 #DEFINES += dDOUBLE
 SOURCES += main.cpp \
-    include/vmCar.cpp
+    include/vmCar.cpp \
+    include/vmwishboncar.cpp
 
 INCLUDEPATH += /home/jlo/ode-0.13/include
 INCLUDEPATH += /home/jlo/ode-0.13/drawstuff/src
 INCLUDEPATH += /home/jlo/ode-0.13/ode/src
 
 HEADERS += \
-    include/vmCar.h
+    include/vmCar.h \
+    include/vmwishboncar.h
 
 RC_FILE += /home/jlo/ode-0.13/drawstuff/src/resources.rc
 
