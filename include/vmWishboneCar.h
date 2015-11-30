@@ -24,10 +24,10 @@ struct vmWishbone{
     dJointID jLowSpring;
 };
 
-class vmWishbonCar : public vmCar
+class vmWishboneCar : public vmCar
 {
 public:
-    vmWishbonCar(dWorldID world, dSpaceID space);
+    vmWishboneCar(dWorldID world, dSpaceID space);
     virtual ~vmWishboneCar();
 
     // member
@@ -38,7 +38,10 @@ public:
 
     // setter
     virtual void setWheelJoint(vm::WheelLoc loc);
+    void buildWheelJointLinkage(vmWheel *wnow, vmWishbone *snow, dReal shiftRatio);
+    void buildWheelJoint(vmWheel *wnow, vmWishbone *snow, dReal shiftRatio);
 
+    virtual void setWheelSuspension(vm::WheelLoc loc,dReal step,dReal kps, dReal kds);
 };
 
 #endif // VMWISHBONCAR_H
