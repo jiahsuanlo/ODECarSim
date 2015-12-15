@@ -4,6 +4,7 @@
 #include <ode/ode.h>
 #include <drawstuff/drawstuff.h>
 #include <include/vmCar.h>
+#include <include/vmWishboneCar.h>
 
 
 #ifdef dDOUBLE
@@ -46,8 +47,8 @@ dReal chassisHeight= 0.75;
 dReal wheelMass= 10;
 dReal wheelRadius= 0.4;  // wheel radius
 dReal wheelWidth= 0.2;  // wheel width
-dReal kps= 55000.0;  // suspension stiffness
-dReal kds= 1579.0; // 4000.0;  //1579.0;   // suspension damping
+dReal kps= 55000; //55000.0;  // suspension stiffness
+dReal kds= 1579;   //4000.0; // 4000.0;  //1579.0;   // suspension damping
 
 // control parameters
 dReal speed= 0.0;
@@ -141,6 +142,7 @@ static void simloop(int pause)
     car->simDraw();
 
     // draw obstacles
+    dsSetColor(0.0,1.0,0.0);
     for (int i=0;i<nObs;++i)
     {
         //dsDrawSphere(dGeomGetPosition(ball[i].geom),dGeomGetRotation(ball[i].geom),ball[i].radius);
@@ -170,8 +172,8 @@ void command(int cmd)
 // camera setup
 void start()
 {
-  static float xyz[3] = {-5.0,-30.0,10.0};
-  static float hpr[3] = {45.0,-30.0,0.0};
+  static float xyz[3] = {-10.0,-5.0,5.0};
+  static float hpr[3] = {5.0,-15.0,0.0};
   dsSetViewpoint (xyz,hpr);
 }
 
@@ -188,10 +190,22 @@ void setDSFunctions()
     //fn.path_to_textures= "/home/jlo/ode-0.13/drawstuff/textures";  // linux version
 }
 
-// create bodies
+// create a standard car
 void createCar()
 {
     car= new vmCar(world,vehicleSpace);
+    car->setChassis(chassisMass,chassisLength,
+                   chassisWidth,chassisHeight);
+    car->setAllWheel(wheelMass,wheelWidth,wheelRadius);
+    car->setCarOnGround(0.0,0.0);
+    car->setAllWheelJoint();
+    car->setInitialControls(steer,speed,steerGain);
+}
+
+// create a wishbone suspension car
+void createWishboneCar()
+{
+    car= new vmWishboneCar(world,vehicleSpace);
     car->setChassis(chassisMass,chassisLength,
                    chassisWidth,chassisHeight);
     car->setAllWheel(wheelMass,wheelWidth,wheelRadius);
@@ -274,7 +288,7 @@ int main (int argc, char **argv)
     contactGroup= dJointGroupCreate(0);
 
     //set gravity
-    dWorldSetGravity(world,0.0,0.0, -9.81);
+    dWorldSetGravity(world,0.0,0.0,-9.81);
 
     // create ground
     ground= dCreatePlane(groundSpace,0.0, 0.0, 1.0, 0.0);  // z= 0 plane
@@ -283,7 +297,8 @@ int main (int argc, char **argv)
     createBoxObstacles();
 
     // create car
-    createCar();
+    //createCar();
+    createWishboneCar();
 
 
     // output files

@@ -1,5 +1,5 @@
-#ifndef VMWISHBONCAR_H
-#define VMWISHBONCAR_H
+#ifndef VMWISHBONECAR_H
+#define VMWISHBONECAR_H
 
 #include <ode/ode.h>
 #include <drawstuff/drawstuff.h>
@@ -16,18 +16,20 @@ struct cylinder{
 };
 
 struct vmWishbone{
-    cylinder uplink;
-    cylinder lowlink;
-    cylinder hlink;
+    cylinder uplink{0.0,0.0,0.0};
+    cylinder lowlink{0.0,0.0,0.0};
+    cylinder hlink{0.0,0.0,0.0};
+    cylinder upstrut{0.0,0.0,0.0};
+    cylinder lowstrut{0.0,0.0,0.0};
     dJointID jChassisUp,jChassisLow;
     dJointID jRotorUp, jRotorLow, jRotorMid;
-    dJointID jLowSpring;
+    dJointID jStrutUp, jStrutLow, jStrutMid;
 };
 
 class vmWishboneCar : public vmCar
 {
 public:
-    vmWishboneCar(dWorldID world, dSpaceID space);
+    vmWishboneCar(dWorldID world,dSpaceID space): vmCar(world,space){}
     virtual ~vmWishboneCar();
 
     // member
@@ -36,12 +38,27 @@ public:
     vmWishbone rrSuspension;
     vmWishbone rlSuspension;
 
+    dReal strutAngle= 5*M_PI/180.0;
+
     // setter
     virtual void setWheelJoint(vm::WheelLoc loc);
-    void buildWheelJointLinkage(vmWheel *wnow, vmWishbone *snow, dReal shiftRatio);
-    void buildWheelJoint(vmWheel *wnow, vmWishbone *snow, dReal shiftRatio);
+    void buildWheelJointLinkage(vmWheel *wnow, vmWishbone *snow, dReal shiftSign);
+    void buildWheelJoint(vmWheel *wnow, vmWishbone *snow, dReal shiftSign);
 
     virtual void setWheelSuspension(vm::WheelLoc loc,dReal step,dReal kps, dReal kds);
+
+    // simloop functions
+    virtual void simControl();
+    virtual void simForward(dReal mphSpeed);
+    //virtual void simSlowSteer();
+
+    // simloop draw function
+    virtual void simDraw();
+    void drawLinkage(vm::WheelLoc loc);
+
+    // suspension functions
+    virtual dReal getSuspensionRate(vm::WheelLoc loc, dReal step);
+
 };
 
-#endif // VMWISHBONCAR_H
+#endif // VMWISHBONECAR_H

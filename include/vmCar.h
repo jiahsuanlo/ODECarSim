@@ -71,24 +71,28 @@ class vmCar
         virtual void setWheelJoint(vm::WheelLoc loc);
         void setAllWheelJoint();
 
-        void setWheelSuspension(vm::WheelLoc loc,dReal step,dReal kps, dReal kds);
+        virtual void setWheelSuspension(vm::WheelLoc loc,dReal step,dReal kps, dReal kds);
         void setAllWheelSuspension(dReal step,dReal kps, dReal kds);
 
         // simloop functions
         void simCommand(int cmd);
-        void simControl();
-        void simForward(dReal mphSpeed);
-        void simSlowSteer();
+        virtual void simControl();
+        virtual void simForward(dReal mphSpeed);
+        //void simSlowSteer();
 
         // simloop draw function
-        void simDraw();
+        virtual void simDraw();
 
         // control funcitons
         void setInitialControls(dReal steer,dReal speed,dReal steerGain);
 
+        // suspension functions
+        dReal getNonlinearKd(vm::WheelLoc loc, dReal step);
+        virtual dReal getSuspensionRate(vm::WheelLoc loc, dReal step);
+
         // getter
         dReal getTotalMass();
-        dReal getNonlinearKd(vm::WheelLoc loc, dReal step);
+
 
 
         // report functions
@@ -110,11 +114,6 @@ struct sphere{
     dReal radius;
 };
 
-struct cylinder{
-    dGeomID geom;
-    dReal radius;
-    dReal length;
-};
 
 struct box{
     dGeomID geom;

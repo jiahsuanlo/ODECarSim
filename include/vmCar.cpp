@@ -268,16 +268,9 @@ dReal vmCar::getNonlinearKd(vm::WheelLoc loc, dReal step)
         break;
     }
 
-    dVector3 res1,res2;
-    dJointGetHinge2Anchor(wnow->joint, res1);
-    dJointGetHinge2Anchor2(wnow->joint, res2);
-    dReal dzNew = res1[2]- res2[2];
-
     // compute vz
-    dReal vz= (dzNew- wnow->dzSuspension)/step;
+    dReal vz= getSuspensionRate(loc, step);
 
-    // update old dz
-    wnow->dzSuspension= dzNew;
 
     // calculate kd
     dReal kd;
@@ -291,6 +284,38 @@ dReal vmCar::getNonlinearKd(vm::WheelLoc loc, dReal step)
     //printf("dz=%12.6f; vz=%12.6f; kd=%12.6f\n",
     //       dzNew, vz, kd);
     return kd;
+}
+
+dReal vmCar::getSuspensionRate(vm::WheelLoc loc, dReal step)
+{
+    // select wheel
+    vmWheel *wnow;
+    switch (loc) {
+    case vm::WheelLoc::FR:
+        wnow= &frWheel;
+        break;
+    case vm::WheelLoc::FL:
+        wnow= &flWheel;
+        break;
+    case vm::WheelLoc::RR:
+        wnow= &rrWheel;
+        break;
+    case vm::WheelLoc::RL:
+        wnow= &rlWheel;
+        break;
+    default:
+        break;
+    }
+
+    dVector3 res1,res2;
+    dJointGetHinge2Anchor(wnow->joint, res1);
+    dJointGetHinge2Anchor2(wnow->joint, res2);
+    dReal dzNew = res1[2]- res2[2];
+    // update old dz
+    wnow->dzSuspension= dzNew;
+
+    // compute vz
+    return (dzNew- wnow->dzSuspension)/step;
 }
 
 
@@ -356,20 +381,26 @@ void vmCar::setWheelJoint(vm::WheelLoc loc)
 {
     vmWheel *wnow;
     bool lock= false;
+    dReal strutShift;
+
     switch (loc) {
     case vm::WheelLoc::FR:
         wnow= &frWheel;
+        strutShift= 0.2;
         break;
     case vm::WheelLoc::FL:
         wnow= &flWheel;
+        strutShift= -0.2;
         break;
     case vm::WheelLoc::RR:
         wnow= &rrWheel;
         lock= true;
+        strutShift= 0.2;
         break;
     case vm::WheelLoc::RL:
         wnow= &rlWheel;
         lock= true;
+        strutShift= -0.2;
         break;
     default:
         break;
