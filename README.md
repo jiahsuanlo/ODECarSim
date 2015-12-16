@@ -4,7 +4,7 @@
 #### Author: Josh Lo
 #### Date: `r date()`
 
-ODE car simulator 
+ODE car simulator template
 
 
 
