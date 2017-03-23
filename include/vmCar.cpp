@@ -289,7 +289,7 @@ dReal vmCar::getNonlinearKd(vm::WheelLoc loc, dReal step)
 dReal vmCar::getSuspensionRate(vm::WheelLoc loc, dReal step)
 {
     // select wheel
-    vmWheel *wnow;
+    vmWheel *wnow= nullptr;
     switch (loc) {
     case vm::WheelLoc::FR:
         wnow= &frWheel;
@@ -319,7 +319,7 @@ dReal vmCar::getSuspensionRate(vm::WheelLoc loc, dReal step)
 }
 
 
-void vmCar::listVehiclePosition(FILE* fp, dReal simCt, dReal step)
+void vmCar::listVehiclePosition(std::ofstream &fp, dReal simCt, dReal step)
 {
     const dReal *pos= dBodyGetPosition(chassis.body);
 
@@ -330,23 +330,14 @@ void vmCar::listVehiclePosition(FILE* fp, dReal simCt, dReal step)
 
     if (simCt==1)
     {
-        fprintf(fp,"%12s%12s%12s%12s","Time","PosX","PosY","PosZ");
-        fprintf(fp,"%12s%12s%12s\n","Roll","Pitch","Yaw");
-        fprintf(fp,"%12.4f%12.4f%12.4f%12.4f",simCt*step,
-               pos[0],pos[1],pos[2]);
-        fprintf(fp,"%12.4f%12.4f%12.4f\n",
-               roll,pitch,yaw);
+        fp<<"Time,"<<"PosX,"<<"PosY,"<<"PosZ,"<<"Roll,"<<"Pitch,"<<"Yaw\n";        
     }
-    else
-    {
-        fprintf(fp,"%12.4f%12.4f%12.4f%12.4f",simCt*step,
-               pos[0],pos[1],pos[2]);
-        fprintf(fp,"%12.4f%12.4f%12.4f\n",
-               roll,pitch,yaw);
-    }
+	fp << simCt*step << "," << pos[0] << "," << pos[1] << "," << pos[2]
+		<< "," << roll << "," << pitch << "," << yaw << "\n";
+    
 }
 
-void vmCar::listWheelForce(FILE *fp, dReal simCt, dReal step)
+void vmCar::listWheelForce(std::ofstream &fp, dReal simCt, dReal step)
 {
 
     dJointFeedback *fb0= frWheel.feedback;
@@ -354,32 +345,24 @@ void vmCar::listWheelForce(FILE *fp, dReal simCt, dReal step)
     dJointFeedback *fb2= rrWheel.feedback;
     dJointFeedback *fb3= rlWheel.feedback;
 
-    if (simCt==1)
-    {
-        fprintf(fp,"%12s%12s%12s%12s%12s%12s%12s%12s%12s%12s%12s%12s%12s\n",
-                "Time","FRChss-Fx","FRChss-Fy","FRChss-Fz",
-                "FLChss-Fx","FLChss-Fy","FLChss-Fz",
-                "RRChss-Fx","RRChss-Fy","RRChss-Fz",
-                "RLChss-Fx","RLChss-Fy","RLChss-Fz");
-        fprintf(fp,"%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f\n"
-                ,simCt*step,fb0->f1[0],fb0->f1[1],fb0->f1[2],
-                fb1->f1[0],fb1->f1[1],fb1->f1[2],
-                fb2->f1[0],fb2->f1[1],fb2->f1[2],
-                fb3->f1[0],fb3->f1[1],fb3->f1[2]);
-    }
-    else
-    {
-        fprintf(fp,"%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f%12.4f\n"
-                ,simCt*step,fb0->f1[0],fb0->f1[1],fb0->f1[2],
-                fb1->f1[0],fb1->f1[1],fb1->f1[2],
-                fb2->f1[0],fb2->f1[1],fb2->f1[2],
-                fb3->f1[0],fb3->f1[1],fb3->f1[2]);
-    }
+	if (simCt == 1)
+	{
+		fp << "Time," << "FRChss-Fx," << "FRChss-Fy," << "FRChss-Fz," <<
+			"FLChss-Fx," << "FLChss-Fy," << "FLChss-Fz," <<
+			"RRChss-Fx," << "RRChss-Fy," << "RRChss-Fz," <<
+			"RLChss-Fx," << "RLChss-Fy," << "RLChss-Fz\n";
+	}
+    fp<<simCt*step<<","<<fb0->f1[0]<<","<<fb0->f1[1]<<","<<fb0->f1[2]<<","<<
+                fb1->f1[0]<<","<<fb1->f1[1]<<","<<fb1->f1[2]<<","<<
+                fb2->f1[0]<<","<<fb2->f1[1]<<","<<fb2->f1[2]<<","<<
+                fb3->f1[0]<<","<<fb3->f1[1]<<","<<fb3->f1[2]<<"\n";
+    
+    
 }
 
 void vmCar::setWheelJoint(vm::WheelLoc loc)
 {
-    vmWheel *wnow;
+    vmWheel *wnow= nullptr;
     bool lock= false;
     dReal strutShift;
 
@@ -432,7 +415,7 @@ void vmCar::setWheelJoint(vm::WheelLoc loc)
 
 void vmCar::setWheelSuspension(vm::WheelLoc loc, dReal step, dReal kps, dReal kds)
 {
-    vmWheel *wnow;
+    vmWheel *wnow= nullptr;
     switch (loc) {
     case vm::WheelLoc::FR:
         wnow= &frWheel;
@@ -499,7 +482,7 @@ void vmCar::simCommand(int cmd)
 
 void vmCar::setWheel(vm::WheelLoc loc, dReal mass, dReal length, dReal radius)
 {
-    vmWheel *wnow;
+    vmWheel *wnow= nullptr;
     switch (loc) {
     case vm::WheelLoc::FR:
         wnow= &frWheel;

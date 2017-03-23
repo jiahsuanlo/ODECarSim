@@ -7,8 +7,8 @@ vmWishboneCar::~vmWishboneCar()
 void vmWishboneCar::setWheelJoint(vm::WheelLoc loc)
 {
     // select wheel
-    vmWheel *wnow;
-    vmWishbone *snow;
+    vmWheel *wnow= nullptr;
+    vmWishbone *snow= nullptr;
     dReal shiftSign;
     switch (loc) {
     case vm::WheelLoc::FR:
@@ -156,8 +156,8 @@ void vmWishboneCar::buildWheelJoint(vmWheel *wnow, vmWishbone *snow, dReal shift
 
 void vmWishboneCar::setWheelSuspension(vm::WheelLoc loc, dReal step, dReal kps, dReal kds)
 {
-    vmWheel *wnow;
-    vmWishbone *snow;
+    vmWheel *wnow= nullptr;
+    vmWishbone *snow= nullptr;
     switch (loc) {
     case vm::WheelLoc::FR:
         wnow= &frWheel;
@@ -330,7 +330,7 @@ void vmWishboneCar::simDraw()
 void vmWishboneCar::drawLinkage(vm::WheelLoc loc)
 {
     // select wheel
-    vmWishbone *snow;
+	vmWishbone *snow = nullptr;
     switch (loc) {
     case vm::WheelLoc::FR:
         snow= &frSuspension;
@@ -383,7 +383,7 @@ void vmWishboneCar::drawLinkage(vm::WheelLoc loc)
 dReal vmWishboneCar::getSuspensionRate(vm::WheelLoc loc, dReal step)
 {
     // select wheel
-    vmWishbone *snow;
+    vmWishbone *snow= nullptr;
     switch (loc) {
     case vm::WheelLoc::FR:
         snow= &frSuspension;

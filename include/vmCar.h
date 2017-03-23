@@ -1,6 +1,7 @@
 #ifndef VMCAR_H
 #define VMCAR_H
 
+#include <fstream>
 #include <ode/ode.h>
 #include <drawstuff/drawstuff.h>
 
@@ -93,11 +94,10 @@ class vmCar
         // getter
         dReal getTotalMass();
 
-
-
         // report functions
-        void listVehiclePosition(FILE *fp, dReal simCt, dReal step);
-        void listWheelForce(FILE *fp, dReal simCt, dReal step);
+        void listVehiclePosition(std::ofstream &fp, dReal simCt, dReal step);
+        void listWheelForce(std::ofstream &fp, dReal simCt, dReal step);
+
 
     protected:
         // compute ERP and CFM
