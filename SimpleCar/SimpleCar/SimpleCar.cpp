@@ -4,12 +4,13 @@
 #include "stdafx.h"
 // Simple ODE car simulator
 #include <fstream>
+#include <iostream>
 
 #include <ode/ode.h>
 #include <drawstuff/drawstuff.h>
 #include <vmCar.h>
 #include <vmWishboneCar.h>
-
+#include <ctime>
 
 #ifdef dDOUBLE
 #define dsDrawCylinder dsDrawCylinderD
@@ -35,6 +36,13 @@ dsFunctions fn;
 // define some constants
 dReal STEPSIZE = 0.01;
 const int maxContacts = 10;
+static dReal simCt;
+
+static double rt1 = 0.0;
+static double rt2 = 0.0;
+static double rt3 = 0.0;
+static double rt4 = 0.0;
+
 
 // ground and obstacle balls
 dGeomID ground;
@@ -112,7 +120,7 @@ static void nearCallback(void *data, dGeomID g1, dGeomID g2)
 static void simloop(int pause)
 {
 
-	static dReal simCt;
+	
 
 	// update suspension
 
@@ -127,20 +135,29 @@ static void simloop(int pause)
 	nl_kd= car->getNonlinearKd(vm::RL,STEPSIZE);
 	car->setWheelSuspension(vm::RL,STEPSIZE,kps,nl_kd);*/
 
+	auto tstart = std::clock();
 
 	car->setAllWheelSuspension(STEPSIZE, kps, kds);
+
 
 	//set control
 	//car->simControl();
 	car->simForward(20.0);
+	rt1 += (std::clock() - tstart) / double(CLOCKS_PER_SEC);
+
+	tstart = std::clock();
 
 	dSpaceCollide(space, 0, &nearCallback);
+	
+	//dWorldQuickStep(world, STEPSIZE);
 	dWorldStep(world, STEPSIZE);
 	simCt++;
-
+	rt2 += (std::clock() - tstart) / double(CLOCKS_PER_SEC);
 	// collision setup
 	dJointGroupEmpty(contactGroup);
 
+
+	tstart = std::clock();
 	// draw car now
 	car->simDraw();
 
@@ -156,7 +173,7 @@ static void simloop(int pause)
 	// report
 	car->listVehiclePosition(fp_pos, simCt, STEPSIZE);
 	car->listWheelForce(fp_jnt, simCt, STEPSIZE);
-
+	rt3 += (std::clock() - tstart) / double(CLOCKS_PER_SEC);
 	//printf("\n");
 
 
@@ -278,6 +295,8 @@ void createBoxObstacles()
 // main
 int main(int argc, char **argv)
 {
+	auto tstart= std::clock();
+	
 	setDSFunctions();
 	dInitODE();
 	// create basis
@@ -292,6 +311,7 @@ int main(int argc, char **argv)
 
 	//set gravity
 	dWorldSetGravity(world, 0.0, 0.0, -9.81);
+	dWorldSetCFM(world, 1e-8);
 
 	// create ground
 	ground = dCreatePlane(groundSpace, 0.0, 0.0, 1.0, 0.0);  // z= 0 plane
@@ -300,8 +320,8 @@ int main(int argc, char **argv)
 	createBoxObstacles();
 
 	// create car
-	//createCar();
-	createWishboneCar();
+	createCar();
+	//createWishboneCar();
 
 
 	// output files
@@ -309,7 +329,17 @@ int main(int argc, char **argv)
 	fp_jnt.open("wheelForce.txt");
 
 	// start simulation
-	dsSimulationLoop(argc, argv, 1000, 800, &fn);
+	dsSimulationLoop(argc, argv, 400, 300, &fn);
+	/*while (1)
+	{
+		simloop(0);
+		
+		if (simCt > 1000)
+		{
+			break;
+		}
+	}*/
+
 
 	fp_pos.close();
 	fp_jnt.close();
@@ -320,5 +350,10 @@ int main(int argc, char **argv)
 
 	delete car;
 
+	std::cout << "simCt= " << simCt<<"\n";
+	std::cout << "elapsed time= " << (std::clock()-tstart) / double(CLOCKS_PER_SEC)<<std::endl;
+	std::cout << "rt1= " << rt1 << " rt2= " << rt2 << " rt3= " << rt3 << std::endl;
+
+	std::system("pause");
 	return 0;
 }
