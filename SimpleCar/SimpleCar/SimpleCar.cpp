@@ -5,6 +5,7 @@
 // Simple ODE car simulator
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include <ode/ode.h>
 #include <drawstuff/drawstuff.h>
@@ -35,8 +36,10 @@ dsFunctions fn;
 
 // define some constants
 dReal STEPSIZE = 0.01;
-const int maxContacts = 10;
+const int maxContacts = 2;
 static dReal simCt;
+static bool simStop = false;
+static bool drawYes = false;
 
 static double rt1 = 0.0;
 static double rt2 = 0.0;
@@ -61,7 +64,7 @@ dReal wheelMass = 10;
 dReal wheelRadius = 0.4;  // wheel radius
 dReal wheelWidth = 0.2;  // wheel width
 dReal kps = 55000; //55000.0;  // suspension stiffness
-dReal kds = 1579;   //4000.0; // 4000.0;  //1579.0;   // suspension damping
+dReal kds = 1579; // 1579;   //4000.0; // 4000.0;  //1579.0;   // suspension damping
 
 					// control parameters
 dReal speed = 0.0;
@@ -100,9 +103,9 @@ static void nearCallback(void *data, dGeomID g1, dGeomID g2)
 
 				contact[i].surface.mu = 1;
 				contact[i].surface.mu2 = 1;
-				//contact[i].surface.slip1 = 1e-10;
-				//contact[i].surface.slip2 = 1e-10;
-				contact[i].surface.soft_erp = 0.01;
+				//contact[i].surface.soft_erp = 0.126;
+				//contact[i].surface.soft_cfm = 9.708e-5;
+				contact[i].surface.soft_erp = 0.9;
 				contact[i].surface.soft_cfm = 1e-5;
 
 				// build contact joint now
@@ -119,8 +122,6 @@ static void nearCallback(void *data, dGeomID g1, dGeomID g2)
 // simulation loop
 static void simloop(int pause)
 {
-
-	
 
 	// update suspension
 
@@ -142,7 +143,9 @@ static void simloop(int pause)
 
 	//set control
 	//car->simControl();
-	car->simForward(20.0);
+	dReal strTarget = 0.15*std::sin(2 * M_PI * 0.5 * simCt*STEPSIZE);
+	car->simForward(20.0, strTarget);
+	
 	rt1 += (std::clock() - tstart) / double(CLOCKS_PER_SEC);
 
 	tstart = std::clock();
@@ -158,18 +161,21 @@ static void simloop(int pause)
 
 
 	tstart = std::clock();
+
 	// draw car now
-	car->simDraw();
-
-	// draw obstacles
-	dsSetColor(0.0, 1.0, 0.0);
-	for (int i = 0; i<nObs; ++i)
+	if (drawYes)
 	{
-		//dsDrawSphere(dGeomGetPosition(ball[i].geom),dGeomGetRotation(ball[i].geom),ball[i].radius);
-		dsDrawBoxD(dGeomGetPosition(obs[i].geom)
-			, dGeomGetRotation(obs[i].geom), obs[i].sides);
-	}
+		car->simDraw();
 
+		// draw obstacles
+		dsSetColor(0.0, 1.0, 0.0);
+		for (int i = 0; i < nObs; ++i)
+		{
+			//dsDrawSphere(dGeomGetPosition(ball[i].geom),dGeomGetRotation(ball[i].geom),ball[i].radius);
+			//dsDrawBoxD(dGeomGetPosition(obs[i].geom)
+			//	, dGeomGetRotation(obs[i].geom), obs[i].sides);
+		}
+	}
 	// report
 	car->listVehiclePosition(fp_pos, simCt, STEPSIZE);
 	car->listWheelForce(fp_jnt, simCt, STEPSIZE);
@@ -179,8 +185,11 @@ static void simloop(int pause)
 
 	// termination condition
 	const dReal *pos = dBodyGetPosition(car->chassis.body);
-	if (pos[0]>60.0)
+	if (pos[0] > 60.0)
+	{
+		simStop = true;
 		dsStop();
+	}
 }
 
 // command
@@ -214,6 +223,7 @@ void setDSFunctions()
 void createCar()
 {
 	car = new vmCar(world, vehicleSpace);
+	
 	car->setChassis(chassisMass, chassisLength,
 		chassisWidth, chassisHeight);
 	car->setAllWheel(wheelMass, wheelWidth, wheelRadius);
@@ -292,11 +302,34 @@ void createBoxObstacles()
 	}
 }
 
-// main
-int main(int argc, char **argv)
+// user input
+void userInput(bool &draw, std::string &outPostfix)
 {
-	auto tstart= std::clock();
-	
+	std::cout << "Enter the output file name postfix: ";
+	std::cin >> outPostfix;
+	std::cout << "\nDraw the simulation? (yes/no): ";
+	std::string answer;
+	std::cin >> answer;
+	// convert answer to upper case
+	for (auto &c : answer) c = toupper(c);
+
+	if (std::strcmp(answer.c_str(), "YES")==0)
+		draw = true;
+	else
+		draw = false;
+
+	std::cout << answer << " draw= "<<draw<<std::endl;
+}
+
+// main
+int main(int argc, char *argv[])
+{
+	// get user input 
+	std::string postfix;
+	userInput(drawYes, postfix);
+
+	auto tstart = std::clock();
+
 	setDSFunctions();
 	dInitODE();
 	// create basis
@@ -315,9 +348,10 @@ int main(int argc, char **argv)
 
 	// create ground
 	ground = dCreatePlane(groundSpace, 0.0, 0.0, 1.0, 0.0);  // z= 0 plane
-															 // create obstacles
-															 //createAlignedObstacles();
-	createBoxObstacles();
+
+	// create obstacles
+	//createAlignedObstacles();
+	//createBoxObstacles();
 
 	// create car
 	createCar();
@@ -325,20 +359,29 @@ int main(int argc, char **argv)
 
 
 	// output files
-	fp_pos.open("vehiclePos.txt");
-	fp_jnt.open("wheelForce.txt");
+	std::string vehFile = "vehiclePos_" + postfix + ".csv";
+	std::string whlFile = "wheelForce_" + postfix + ".csv";
+	fp_pos.open(vehFile);
+	fp_jnt.open(whlFile);
 
 	// start simulation
-	dsSimulationLoop(argc, argv, 400, 300, &fn);
-	/*while (1)
+	std::cout << " drawYes= " << drawYes << std::endl;
+	if (drawYes)
 	{
-		simloop(0);
-		
-		if (simCt > 1000)
+		dsSimulationLoop(argc, argv, 400, 300, &fn);
+	}
+	else
+	{
+		while (1)
 		{
-			break;
+			simloop(0);
+
+			if (simStop)
+			{
+				break;
+			}
 		}
-	}*/
+	}
 
 
 	fp_pos.close();
@@ -350,8 +393,8 @@ int main(int argc, char **argv)
 
 	delete car;
 
-	std::cout << "simCt= " << simCt<<"\n";
-	std::cout << "elapsed time= " << (std::clock()-tstart) / double(CLOCKS_PER_SEC)<<std::endl;
+	std::cout << "simCt= " << simCt << "\n";
+	std::cout << "elapsed time= " << (std::clock() - tstart) / double(CLOCKS_PER_SEC) << std::endl;
 	std::cout << "rt1= " << rt1 << " rt2= " << rt2 << " rt3= " << rt3 << std::endl;
 
 	std::system("pause");

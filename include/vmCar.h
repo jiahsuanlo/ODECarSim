@@ -78,7 +78,7 @@ class vmCar
         // simloop functions
         void simCommand(int cmd);
         virtual void simControl();
-        virtual void simForward(dReal mphSpeed);
+        virtual void simForward(dReal mphSpeed, dReal targetSteer= 0);
         //void simSlowSteer();
 
         // simloop draw function

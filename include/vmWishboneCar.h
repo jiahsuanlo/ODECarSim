@@ -49,7 +49,7 @@ public:
 
     // simloop functions
     virtual void simControl();
-    virtual void simForward(dReal mphSpeed);
+    virtual void simForward(dReal mphSpeed, dReal targetSteer);
     //virtual void simSlowSteer();
 
     // simloop draw function

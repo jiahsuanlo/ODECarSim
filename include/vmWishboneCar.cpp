@@ -256,7 +256,7 @@ void vmWishboneCar::simControl()
 
 }
 
-void vmWishboneCar::simForward(dReal mphSpeed)
+void vmWishboneCar::simForward(dReal mphSpeed, dReal targetStr)
 {
     dReal dsteer, realSpeed;
     //dsteer = 0.0 - dJointGetHinge2Angle1(frWheel.joint);  // target at zero steer

@@ -170,15 +170,15 @@ void vmCar::simControl()
 
 }
 
-void vmCar::simForward(dReal mphSpeed)
+void vmCar::simForward(dReal mphSpeed, dReal targetSteer)
 {
     dReal dsteer, realSpeed;
-    dsteer = 0.0 - dJointGetHinge2Angle1(frWheel.joint);  // target at zero steer
+    dsteer = targetSteer - dJointGetHinge2Angle1(frWheel.joint);  // target at zero steer
 
     // calculate wheel real speed
     dReal siSpeed= mphSpeed*1.6/3600.0*1000; // convert ot m/s
     realSpeed = -siSpeed/frWheel.radius;
-
+	
     // steer
     dJointSetHinge2Param(frWheel.joint, dParamVel, steerGain*dsteer+0.01*dsteer/0.01);
     dJointSetHinge2Param(frWheel.joint, dParamFMax, 1000.0);
