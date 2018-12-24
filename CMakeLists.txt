@@ -15,3 +15,4 @@ set(ODEDIR C:/dev/ode-0.15.2)
 # add subdirectories
 add_subdirectory(src/VehicleLib)
 add_subdirectory(src/SimpleCarApp)
+add_subdirectory(src/SimpleTruckApp)

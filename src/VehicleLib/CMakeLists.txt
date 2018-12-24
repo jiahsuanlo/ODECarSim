@@ -6,7 +6,8 @@ include_directories(${ODEDIR}/include
 
 add_library(VehicleLib STATIC
 	vmCar.cpp
-	vmWishboneCar.cpp)
+	vmWishboneCar.cpp
+	vmTruck.cpp)
 
 set_target_properties(VehicleLib
 PROPERTIES

@@ -1,245 +1,109 @@
-#include "vmCar.h"
+#include "vmTruck.h"
 #include <vector>
 
-vmCar::vmCar(dWorldID world, dSpaceID space,int num_axles)
+vmCar::vmTruck(dWorldID world, dSpaceID space)
 {
-    this->world_= world;
-    this->space_= space;
-	left_wheels_.resize(num_axles);
-	right_wheels_.resize(num_axles);	
+    this->world= world;
+    this->space= space;    
 }
 
 
 vmCar::~vmCar()
 {
-    //delete left side wheel feedback
-	for (auto &wh : left_wheels_)
-	{
-		delete wh.feedback;
-	}
-	// delete right side wheel feedback
-	for (auto &wh : right_wheels_)
-	{
-		delete wh.feedback;
-	}
+    //dtor
+    delete frWheel.feedback;
+    delete flWheel.feedback;
+    delete rrWheel.feedback;
+    delete rlWheel.feedback;
 }
 
 /* set chassis dimension length, width, and height */
-void vmChassis::SetProperty(const dWorldID &world, const dSpaceID &space,
-	dReal mass, dReal length, dReal width, dReal height)
+void vmCar::setChassis(dReal mass, dReal length, dReal width, dReal height)
 {
-    sides[0]= length;
-    sides[1]= width;
-    sides[2]= height;
-    this->mass= mass;
+    chassis.sides[0]= length;
+    chassis.sides[1]= width;
+    chassis.sides[2]= height;
+    chassis.mass= mass;
 
-    // create body
-	body= dBodyCreate(world);
-    
-	// set up geometry (assume only one geom for now)
-	geoms[0].geomEnc= dCreateBox(0,sides[0],sides[1],sides[2]);
-	geoms[0].geomT = dCreateGeomTransform(space);
-	dGeomTransformSetGeom(geoms[0].geomT, geoms[0].geomEnc);
-	dGeomTransformSetInfo(geoms[0].geomT, 1); 
+    // create body and getom
+    chassis.body= dBodyCreate(world);
+    chassis.geom= dCreateBox(space,chassis.sides[0],chassis.sides[1],chassis.sides[2]);
 
     // mass properties
     dMass m1;
     dMassSetZero(&m1);
-    dMassSetBoxTotal(&m1,mass,sides[0],sides[1],sides[2]);
-    dBodySetMass(body,&m1);
-    dGeomSetBody(geoms[0].geomT,body);
+    dMassSetBoxTotal(&m1,chassis.mass,
+                     chassis.sides[0],chassis.sides[1],chassis.sides[2]);
+    dBodySetMass(chassis.body,&m1);
+    dGeomSetBody(chassis.geom,chassis.body);
 
     // set default controls
     this->steer= 0.0;
     this->speed= 0.0;
     this->steerGain= 100;
 
-    initialized=true;
+    chassis.initialized=true;
 }
 
-
-void vmCar::SetWheelPosition(vm::SIDE side, int axleIdx,
-	dReal x_vf, dReal y_vf, dReal z_vf)
+void vmCar::setCMPosition(dReal x, dReal y, dReal z)
 {
-	vmWheel *wnow;
-	if (side == vm::LEFT)
-		wnow = &left_wheels_[axleIdx];
-	else
-		wnow = &right_wheels_[axleIdx];
-	
-	// if any of chassis and wheels are not setup, return
-    if ((!chassis_.initialized) || (!wnow->initialized) )
+    // if any of chassis and wheels are not setup, return
+    if ((!chassis.initialized) || (!frWheel.initialized) ||
+            (!flWheel.initialized) || (!rrWheel.initialized) ||
+            (!rlWheel.initialized))
     {
         printf("setCM: Some chassis/wheel entity is not defined yet!");
         return;
     }
 
-	// get wheel global position
-	dVector3 wpos;
-	dBodyGetRelPointPos(chassis_.body, x_vf, y_vf, z_vf, wpos);
-	
-    // set wheel position
-	dBodySetPosition(wnow->body,wpos[0], wpos[1], wpos[2]);
+    // set chassis position
+    dBodySetPosition(chassis.body,x,y,z);
 
-    //set wheel orientation
-    const dReal *rmat= dBodyGetRotation(chassis_.body);
-    dBodySetRotation(wnow->body, rmat);
+    // set locations
+    dReal len= chassis.sides[0];
+    dReal wd= chassis.sides[1];
+    dReal ht= chassis.sides[2];
+
+    dBodySetPosition(frWheel.body,0.5*len, -0.5*wd, z-0.5*ht);
+    dBodySetPosition(flWheel.body,0.5*len, 0.5*wd, z-0.5*ht);
+    dBodySetPosition(rrWheel.body,-0.5*len, -0.5*wd, z-0.5*ht);
+    dBodySetPosition(rlWheel.body,-0.5*len, 0.5*wd, z-0.5*ht);
+
+    //set rotations
+    dMatrix3 rmat;
+    dRFromAxisAndAngle(rmat,1.0,0.0,0.0, 0.5*M_PI);
+    dBodySetRotation(frWheel.body, rmat);
+    dBodySetRotation(flWheel.body, rmat);
+    dBodySetRotation(rrWheel.body, rmat);
+    dBodySetRotation(rlWheel.body, rmat);
+
 }
 
-void vmCar::SetCMPosition(dReal x, dReal y, dReal z)
-{
-	// check to ensure all left wheels are initialized
-	bool left_whl_initialized = true;
-	for (const auto &wh : left_wheels_)
-	{
-		if (!wh.initialized)
-		{
-			left_whl_initialized = false;
-			break;
-		}
-	}
-	// check to ensure all right wheels are initialized
-	bool right_whl_initialized = true;
-	for (const auto &wh : right_wheels_)
-	{
-		if (!wh.initialized)
-		{
-			right_whl_initialized = false;
-			break;
-		}
-	}
-
-	// if any of chassis and wheels are not setup, return
-	if ((!chassis_.initialized) || (!left_whl_initialized) ||
-		(!right_whl_initialized))
-	{
-		printf("setCM: Some chassis/wheel entity is not defined yet!");
-		return;
-	}
-
-	// get wheel positions in vehicle frame
-	std::vector<dVector3> lt_whl_pos_vf;
-	std::vector<dVector3> rt_whl_pos_vf;
-	for (auto &wh : left_wheels_)
-	{
-		dVector3 pos_vf;
-		const dReal *wh_pos = dBodyGetPosition(wh.body);
-		dBodyGetPosRelPoint(chassis_.body, wh_pos[0], wh_pos[1], wh_pos[2], pos_vf);
-		lt_whl_pos_vf.push_back(pos_vf);
-	}
-	for (auto &wh : right_wheels_)
-	{
-		dVector3 pos_vf;
-		const dReal *wh_pos = dBodyGetPosition(wh.body);
-		dBodyGetPosRelPoint(chassis_.body, wh_pos[0], wh_pos[1], wh_pos[2], pos_vf);
-		rt_whl_pos_vf.push_back(pos_vf);
-	}
-
-	// set chassis position
-	dBodySetPosition(chassis_.body, x, y, z);
-
-	// set wheel positions
-	for (size_t i=0; i<left_wheels_.size(); i++)
-	{
-		// obtain global position of the wheel
-		dVector3 wh_pos;
-		dBodyGetRelPointPos(chassis_.body,
-			lt_whl_pos_vf[i][0], lt_whl_pos_vf[i][1], lt_whl_pos_vf[i][2],
-			wh_pos);
-		// set wheel position now
-		dBodySetPosition(left_wheels_[i].body, wh_pos[0], wh_pos[1], wh_pos[2]);		
-	}
-	for (size_t i = 0; i < right_wheels_.size(); i++)
-	{
-		// obtain global position of the wheel
-		dVector3 wh_pos;
-		dBodyGetRelPointPos(chassis_.body,
-			rt_whl_pos_vf[i][0], rt_whl_pos_vf[i][1], rt_whl_pos_vf[i][2],
-			wh_pos);
-		// set wheel position now
-		dBodySetPosition(right_wheels_[i].body, wh_pos[0], wh_pos[1], wh_pos[2]);
-	}
-}
 /* place the car on the ground based on the x and y location
     z location will be automatically determined
-	assuming the ground level is at 0
 */
-void vmCar::SetCarOnGround(dReal x, dReal y)
+void vmCar::setCarOnGround(dReal x, dReal y)
 {
     dReal znow;
-    znow= left_wheels_[0].radius + 0.5*chassis_.sides[2];
-	SetCMPosition(x, y, znow);
+    znow= frWheel.radius + 0.5*chassis.sides[2];
+    setCMPosition(x,y,znow);
 }
 
-void vmCar::SetAllWheelJoint(const std::vector<int> steerable_axles)
+void vmCar::setAllWheelJoint()
 {
-	size_t num_axles = left_wheels_.size();
-	size_t num_steerable_axles = steerable_axles.size();
-	if (num_steerable_axles > num_axles)
-	{
-		const char* errstr = "set joint: the number of steerable axles must not exceed the number of axles";
-		printf(errstr);
-		throw std::invalid_argument(errstr);
-		return;
-	}
-
-	// check to ensure all left wheels are initialized
-	bool left_whl_initialized = true;
-	for (const auto &wh : left_wheels_)
-	{
-		if (!wh.initialized)
-		{
-			left_whl_initialized = false;
-			break;
-		}
-	}
-	// check to ensure all right wheels are initialized
-	bool right_whl_initialized = true;
-	for (const auto &wh : right_wheels_)
-	{
-		if (!wh.initialized)
-		{
-			right_whl_initialized = false;
-			break;
-		}
-	}
     // if any of chassis and wheels are not setup, return
-    if ((!chassis_.initialized) || (!left_whl_initialized) ||
-            (!right_whl_initialized))
+    if ((!chassis.initialized) || (!frWheel.initialized) ||
+            (!flWheel.initialized) || (!rrWheel.initialized) ||
+            (!rlWheel.initialized))
     {
-		char* errstr = "set Joint: Some chassis/wheel entity is not defined yet!";
-        printf(errstr);
-		throw std::runtime_error(errstr);
+        printf("set Joint: Some chassis/wheel entity is not defined yet!");
+        return;
     }
 
-	// convert steerable_axles to bool vector
-	std::vector<bool> steerable(num_axles,false);
-	for (size_t i = 0; i < num_steerable_axles; i++)
-	{
-		int idx = steerable_axles[i];
-		if (idx >= num_axles)
-		{
-			char *errstr = "set joint: the steerable axle number exceeds the number of all axles";
-			printf(errstr);
-			throw std::invalid_argument(errstr);
-		}
-		steerable[idx] = true;
-	}
-
-	// set joint for the wheels
-	for (size_t i = 0; i < num_axles; i++)
-	{
-		if (steerable[i]) // steerable axle
-		{
-			SetWheelJoint(vm::LEFT, i, true);
-			SetWheelJoint(vm::RIGHT, i, true);
-		}
-		else // non steerable axle
-		{
-			SetWheelJoint(vm::LEFT, i, false);
-			SetWheelJoint(vm::RIGHT, i, false);
-		}		
-	}
+    setWheelJoint(vm::WheelLoc::FR);
+    setWheelJoint(vm::WheelLoc::FL);
+    setWheelJoint(vm::WheelLoc::RR);
+    setWheelJoint(vm::WheelLoc::RL);
 
 }
 
@@ -496,23 +360,39 @@ void vmCar::listWheelForce(std::ofstream &fp, dReal simCt, dReal step)
     
 }
 
-void vmCar::SetWheelJoint(vm::SIDE side, int idx, bool steerable)
+void vmCar::setWheelJoint(vm::WheelLoc loc)
 {
     vmWheel *wnow= nullptr;
-    
-	if (side == vm::LEFT)
-	{
-		wnow = &left_wheels_[idx];
-	}
-	else
-	{
-		wnow = &right_wheels_[idx];
-	}
-	
+    bool lock= false;
+    dReal strutShift;
+
+    switch (loc) {
+    case vm::WheelLoc::FR:
+        wnow= &frWheel;
+        strutShift= 0.2;
+        break;
+    case vm::WheelLoc::FL:
+        wnow= &flWheel;
+        strutShift= -0.2;
+        break;
+    case vm::WheelLoc::RR:
+        wnow= &rrWheel;
+        lock= true;
+        strutShift= 0.2;
+        break;
+    case vm::WheelLoc::RL:
+        wnow= &rlWheel;
+        lock= true;
+        strutShift= -0.2;
+        break;
+    default:
+        break;
+    }
+
     // create joint
-    wnow->joint= dJointCreateHinge2(world_,0);
+    wnow->joint= dJointCreateHinge2(world,0);
     // attach joint
-    dJointAttach(wnow->joint,chassis_.body,wnow->body);
+    dJointAttach(wnow->joint,chassis.body,wnow->body);
     // set joint
     const dReal *pos;
     pos= dBodyGetPosition(wnow->body);
@@ -520,8 +400,8 @@ void vmCar::SetWheelJoint(vm::SIDE side, int idx, bool steerable)
     dJointSetHinge2Axis1(wnow->joint,0.0, 0.0, 1.0); // steering
     dJointSetHinge2Axis2(wnow->joint,0.0, 1.0, 0.0); // rotation
 
-    // lock non-steering wheel to keep it align to 0 degree (longitudinally)
-    if (!steerable)
+    // lock rear wheel to keep it align to 0 degree (longitudinally)
+    if (lock)
     {
         dJointSetHinge2Param(wnow->joint, dParamLoStop, 0.0);
         dJointSetHinge2Param(wnow->joint, dParamHiStop, 0.0);
@@ -530,39 +410,46 @@ void vmCar::SetWheelJoint(vm::SIDE side, int idx, bool steerable)
     // set joint feedback
     wnow->feedback= new dJointFeedback;
     dJointSetFeedback(wnow->joint,wnow->feedback);
+
 }
 
-
-void vmCar::SetWheelSuspension(vm::SIDE side, int idx, dReal step, dReal kps, dReal kds)
+void vmCar::setWheelSuspension(vm::WheelLoc loc, dReal step, dReal kps, dReal kds)
 {
     vmWheel *wnow= nullptr;
-	if (side == vm::LEFT)
-	{
-		wnow = &left_wheels_[idx];
-	}
-	else
-	{
-		wnow = &right_wheels_[idx];
-	}    
+    switch (loc) {
+    case vm::WheelLoc::FR:
+        wnow= &frWheel;
+        break;
+    case vm::WheelLoc::FL:
+        wnow= &flWheel;
+        break;
+    case vm::WheelLoc::RR:
+        wnow= &rrWheel;
+        break;
+    case vm::WheelLoc::RL:
+        wnow= &rlWheel;
+        break;
+    default:
+        break;
+    }
 
-    dJointSetHinge2Param(wnow->joint,dParamSuspensionERP, vm::ComputeERP(step,kps,kds)); // suspension
-    dJointSetHinge2Param(wnow->joint,dParamSuspensionCFM, vm::ComputeCFM(step,kps,kds)); // suspension
+    dJointSetHinge2Param(wnow->joint,dParamSuspensionERP, computeERP(step,kps,kds)); // suspension
+    dJointSetHinge2Param(wnow->joint,dParamSuspensionCFM, computeCFM(step,kps,kds)); // suspension
 }
 
-void vmCar::SetAllWheelSuspension(dReal step, dReal kps, dReal kds)
+void vmCar::setAllWheelSuspension(dReal step, dReal kps, dReal kds)
 {
-	for (size_t i = 0; i < left_wheels_.size(); i++)
-	{
-		SetWheelSuspension(vm::LEFT, i, step, kps, kds);
-		SetWheelSuspension(vm::RIGHT, i, step, kps, kds);
-	}
+    setWheelSuspension(vm::WheelLoc::FR,step,kps,kds);
+    setWheelSuspension(vm::WheelLoc::FL,step,kps,kds);
+    setWheelSuspension(vm::WheelLoc::RR,step,kps,kds);
+    setWheelSuspension(vm::WheelLoc::RL,step,kps,kds);
 }
 
-void vmCar::SimCommand(int cmd)
+void vmCar::simCommand(int cmd)
 {
     // manual command
-	manual_act_ = true;
-	brake_act_ = false;
+    manualYes= 1;
+    brakeYes= 0;
     switch (cmd)
     {
     case 'i': case 'I':
@@ -585,8 +472,7 @@ void vmCar::SimCommand(int cmd)
         steer= 40*M_PI/180;
         break;
     default:
-        manual_act_ = false;
-		brake_act_ = false;
+        manualYes = 0;
         steer*= 0.98;
         speed*= 0.999;
     }
@@ -594,64 +480,67 @@ void vmCar::SimCommand(int cmd)
     //setInitialControls(steer,speed,steerGain);
 }
 
-void vmCar::SetChassis(dReal mass, dReal length, dReal width, dReal height)
+void vmCar::setWheel(vm::WheelLoc loc, dReal mass, dReal length, dReal radius)
 {
-	chassis_.SetProperty(world_, space_, mass, length, width, height);
+    vmWheel *wnow= nullptr;
+    switch (loc) {
+    case vm::WheelLoc::FR:
+        wnow= &frWheel;
+        break;
+    case vm::WheelLoc::FL:
+        wnow= &flWheel;
+        break;
+    case vm::WheelLoc::RR:
+        wnow= &rrWheel;
+        break;
+    case vm::WheelLoc::RL:
+        wnow= &rlWheel;
+        break;
+    default:
+        break;
+    }
+
+    // setup now
+    wnow->radius= radius;
+    wnow->length= length;
+    wnow->mass= mass;
+
+    wnow->body= dBodyCreate(world);
+    wnow->geom= dCreateCylinder(space,wnow->radius,wnow->length);
+
+    // set mass (initially axial direction is parallel to global z)
+    dMass m1;
+    dMassSetZero(&m1);
+    dMassSetCylinderTotal(&m1,wnow->mass,3,wnow->radius,wnow->length);
+    dBodySetMass(wnow->body,&m1);
+
+    // set geom
+    dGeomSetBody(wnow->geom,wnow->body);
+
+    wnow->initialized= true;
 }
 
-/* set wheel properties
-@side: left or right side
-@idx: index of the axle
-@mass: mass of the wheel
-@length: width of the wheel cylinder
-@radius: radius of the wheel cyliner
-*/
-void vmCar::SetWheel(vm::SIDE side, int idx, dReal mass, dReal length, dReal radius)
+void vmCar::setAllWheel(dReal mass, dReal length, dReal radius)
 {
-	vmWheel *wnow= nullptr;
-	if (side == vm::LEFT)
-	{
-		wnow = &left_wheels_[idx];
-	}
-	else
-	{
-		wnow = &right_wheels_[idx];
-	}
-	wnow->SetProperty(world_, space_, mass, length, radius);    
-}
-
-/* set all wheels properties at once
-@mass: mass of the wheel
-@length: width of the wheel cylinder
-@radius: radius of the wheel cyliner
-*/
-void vmCar::SetAllWheel(dReal mass, dReal length, dReal radius)
-{
-	// set up left side wheels
-	for (size_t i = 0; i < left_wheels_.size(); i++)
-	{
-		SetWheel(vm::LEFT, i,mass, length, radius);
-	}
-	// set up right side wheels
-	for (size_t i=0; i< right_wheels_.size();i++)
-	{
-		SetWheel(vm::RIGHT, i, mass, length, radius);
-	}
+    setWheel(vm::WheelLoc::FR,mass,length,radius);
+    setWheel(vm::WheelLoc::FL,mass,length,radius);
+    setWheel(vm::WheelLoc::RR,mass,length,radius);
+    setWheel(vm::WheelLoc::RL,mass,length,radius);
 }
 
 
 // compute ERP and CFM
-dReal vm::ComputeERP(dReal step, dReal kp, dReal kd)
+dReal vmCar::computeERP(dReal step, dReal kp, dReal kd)
 {
     return step*kp/(step*kp + kd);
 }
-dReal vm::ComputeCFM(dReal step, dReal kp, dReal kd)
+dReal vmCar::computeCFM(dReal step, dReal kp, dReal kd)
 {
     return 1.0/(step*kp + kd);
 }
 
 //bounded function
-dReal vm::Bounded(dReal var, dReal lb, dReal ub)
+dReal vmCar::bounded(dReal var, dReal lb, dReal ub)
 {
     dReal out;
     if (var<lb)
@@ -663,29 +552,6 @@ dReal vm::Bounded(dReal var, dReal lb, dReal ub)
     return out;
 }
 
-void vmWheel::SetProperty(const dWorldID &world, const dSpaceID &space, 
-	dReal mass, dReal length, dReal radius)
-{
-	// setup now
-	this->radius = radius;
-	this->length = length;
-	this->mass = mass;
 
-	body = dBodyCreate(world);
-	// setup geometry (assume body and geom centers are same for now)
-	geom.geomEnc = dCreateCylinder(0, this->radius, this->length);
-	geom.geomT = dCreateGeomTransform(space);
-	dGeomTransformSetGeom(geom.geomT, geom.geomEnc);
-	dGeomTransformSetInfo(geom.geomT, 1);
 
-	// set mass (initially axial direction is parallel to global z)
-	dMass m1;
-	dMassSetZero(&m1);
-	dMassSetCylinderTotal(&m1, this->mass, 3, this->radius, this->length);
-	dBodySetMass(body, &m1);
 
-	// set geom
-	dGeomSetBody(geom.geomT, body);
-
-	initialized = true;
-}
